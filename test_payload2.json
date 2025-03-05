@@ -1,0 +1,15 @@
+{
+  "source_ip": "192.168.10.20",
+  "destination_ip": "10.0.0.15",
+  "protocol": "TCP",
+  "behavior": "port_scan",
+  "timestamp": "03/04-12:18:54.123456",
+  "additional_data": {
+    "snort_signature_id": "1000002",
+    "snort_signature_name": "SNORT ALERT: Port Scanning Activity",
+    "snort_classification": "Network Scan",
+    "snort_priority": 2,
+    "source_port": 60123,
+    "destination_port": 22
+  }
+}

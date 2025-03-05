@@ -1,0 +1,15 @@
+{
+  "source_ip": "192.168.10.5",
+  "destination_ip": "10.0.0.10",
+  "protocol": "HTTPS",
+  "behavior": "sql_injection",
+  "timestamp": "03/03-21:25:54.942969",
+  "additional_data": {
+    "snort_signature_id": "1000001",
+    "snort_signature_name": "SNORT ALERT: SQL Injection attempt",
+    "snort_classification": "Web Application Attack",
+    "snort_priority": 1,
+    "source_port": 54321,
+    "destination_port": 443
+  }
+}

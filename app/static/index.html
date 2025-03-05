@@ -1,0 +1,649 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CyberCare Dashboard</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.3/dist/leaflet.css">
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f8f9fa;
+        }
+        .dashboard-container {
+            padding: 20px;
+        }
+        .threat-card {
+            margin-bottom: 10px;
+            transition: all 0.3s;
+        }
+        .threat-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+        }
+        .card-header.HIGH {
+            background-color: #dc3545;
+            color: white;
+        }
+        .card-header.MEDIUM {
+            background-color: #fd7e14;
+            color: white;
+        }
+        .card-header.LOW {
+            background-color: #ffc107;
+        }
+        .card-header.NORMAL {
+            background-color: #20c997;
+        }
+        .severity-badge {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            font-size: 0.8rem;
+        }
+        .badge.HIGH {
+            background-color: #dc3545;
+        }
+        .badge.MEDIUM {
+            background-color: #fd7e14;
+        }
+        .badge.LOW {
+            background-color: #ffc107;
+            color: #343a40;
+        }
+        .badge.NORMAL {
+            background-color: #20c997;
+        }
+        .card-actions {
+            display: flex;
+            justify-content: flex-end;
+            margin-top: 10px;
+        }
+        .threat-detail {
+            font-size: 0.85rem;
+            color: #6c757d;
+        }
+        .stat-card {
+            text-align: center;
+            transition: all 0.3s;
+        }
+        .stat-card:hover {
+            transform: translateY(-5px);
+        }
+        .stat-value {
+            font-size: 2.5rem;
+            font-weight: bold;
+        }
+        .stat-label {
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        #map {
+            height: 300px;
+            border-radius: 5px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+        .alert-counter {
+            position: relative;
+            top: -2px;
+            margin-left: 5px;
+        }
+        .timeline-item {
+            position: relative;
+            padding-left: 20px;
+            margin-bottom: 15px;
+        }
+        .timeline-item:before {
+            content: "";
+            position: absolute;
+            left: 0;
+            top: 0;
+            height: 100%;
+            width: 2px;
+            background-color: #dee2e6;
+        }
+        .timeline-item:after {
+            content: "";
+            position: absolute;
+            left: -4px;
+            top: 0;
+            height: 10px;
+            width: 10px;
+            border-radius: 50%;
+            background-color: #6c757d;
+        }
+        .timeline-item.HIGH:after {
+            background-color: #dc3545;
+        }
+        .timeline-item.MEDIUM:after {
+            background-color: #fd7e14;
+        }
+        .timeline-item.LOW:after {
+            background-color: #ffc107;
+        }
+        .timeline-time {
+            font-size: 0.75rem;
+            color: #6c757d;
+        }
+        .chart-container {
+            position: relative;
+            height: 250px;
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="#">
+                <img src="https://via.placeholder.com/30" alt="Logo" class="d-inline-block align-text-top me-2">
+                CyberCare Dashboard
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav me-auto">
+                    <li class="nav-item">
+                        <a class="nav-link active" href="#">Dashboard</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#">Threats</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#">Incidents</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#">Reports</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#">Settings</a>
+                    </li>
+                </ul>
+                <div class="d-flex align-items-center">
+                    <span class="badge bg-danger me-3">
+                        Alerts <span class="alert-counter" id="alert-count">0</span>
+                    </span>
+                    <div class="dropdown">
+                        <button class="btn btn-outline-light dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                            Admin
+                        </button>
+                        <ul class="dropdown-menu dropdown-menu-end">
+                            <li><a class="dropdown-item" href="#">Profile</a></li>
+                            <li><a class="dropdown-item" href="#">Settings</a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item" href="#">Logout</a></li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container-fluid dashboard-container">
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="d-flex justify-content-between align-items-center">
+                    <h4>Security Overview</h4>
+                    <div>
+                        <button class="btn btn-sm btn-outline-secondary me-2" id="refresh-btn">
+                            <i class="bi bi-arrow-clockwise"></i> Refresh
+                        </button>
+                        <div class="btn-group">
+                            <button class="btn btn-sm btn-outline-secondary active">Today</button>
+                            <button class="btn btn-sm btn-outline-secondary">Week</button>
+                            <button class="btn btn-sm btn-outline-secondary">Month</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Stats Row -->
+        <div class="row mb-4">
+            <div class="col-md-3">
+                <div class="card stat-card">
+                    <div class="card-body">
+                        <div class="stat-value text-danger" id="high-threats">0</div>
+                        <div class="stat-label">High Severity</div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card stat-card">
+                    <div class="card-body">
+                        <div class="stat-value text-warning" id="medium-threats">0</div>
+                        <div class="stat-label">Medium Severity</div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card stat-card">
+                    <div class="card-body">
+                        <div class="stat-value text-info" id="total-threats">0</div>
+                        <div class="stat-label">Total Threats</div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card stat-card">
+                    <div class="card-body">
+                        <div class="stat-value text-success" id="avg-response">0s</div>
+                        <div class="stat-label">Avg Response Time</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Content -->
+        <div class="row mb-4">
+            <!-- Threat Activity -->
+            <div class="col-lg-8">
+                <div class="card h-100">
+                    <div class="card-header">
+                        Threat Activity
+                    </div>
+                    <div class="card-body">
+                        <div class="chart-container">
+                            <canvas id="threatChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Threat Map -->
+            <div class="col-lg-4">
+                <div class="card h-100">
+                    <div class="card-header">
+                        Threat Origins
+                    </div>
+                    <div class="card-body">
+                        <div id="map"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row">
+            <!-- Recent Threats -->
+            <div class="col-lg-8">
+                <div class="card">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <span>Recent Threats</span>
+                        <button class="btn btn-sm btn-outline-secondary" id="clear-threats">Clear All</button>
+                    </div>
+                    <div class="card-body">
+                        <div id="threat-list">
+                            <!-- Threats will be loaded here -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Activity Timeline -->
+            <div class="col-lg-4">
+                <div class="card">
+                    <div class="card-header">
+                        Activity Timeline
+                    </div>
+                    <div class="card-body">
+                        <div id="timeline">
+                            <!-- Timeline will be loaded here -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.3/dist/leaflet.js"></script>
+    <script>
+        // Store threats
+        let threats = [];
+        let threatMap;
+        let threatChart;
+        let markers = [];
+
+        // Initialize map
+        function initMap() {
+            threatMap = L.map('map').setView([20, 0], 2);
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+            }).addTo(threatMap);
+        }
+
+        // Initialize chart
+        function initChart() {
+            const ctx = document.getElementById('threatChart').getContext('2d');
+            
+            // Create 24 hours of labels
+            const labels = Array.from({length: 24}, (_, i) => {
+                const hour = i.toString().padStart(2, '0');
+                return `${hour}:00`;
+            });
+            
+            // Prepare empty data
+            const data = {
+                labels: labels,
+                datasets: [
+                    {
+                        label: 'High',
+                        data: Array(24).fill(0),
+                        borderColor: '#dc3545',
+                        backgroundColor: 'rgba(220, 53, 69, 0.1)',
+                        borderWidth: 2,
+                        tension: 0.4
+                    },
+                    {
+                        label: 'Medium',
+                        data: Array(24).fill(0),
+                        borderColor: '#fd7e14',
+                        backgroundColor: 'rgba(253, 126, 20, 0.1)',
+                        borderWidth: 2,
+                        tension: 0.4
+                    },
+                    {
+                        label: 'Low',
+                        data: Array(24).fill(0),
+                        borderColor: '#ffc107',
+                        backgroundColor: 'rgba(255, 193, 7, 0.1)',
+                        borderWidth: 2,
+                        tension: 0.4
+                    }
+                ]
+            };
+            
+            threatChart = new Chart(ctx, {
+                type: 'line',
+                data: data,
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                precision: 0
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            position: 'top',
+                        }
+                    }
+                }
+            });
+        }
+
+        // Update statistics
+        function updateStats() {
+            const highThreats = threats.filter(t => t.severity === 'HIGH').length;
+            const mediumThreats = threats.filter(t => t.severity === 'MEDIUM').length;
+            const totalThreats = threats.length;
+            
+            document.getElementById('high-threats').textContent = highThreats;
+            document.getElementById('medium-threats').textContent = mediumThreats;
+            document.getElementById('total-threats').textContent = totalThreats;
+            document.getElementById('alert-count').textContent = highThreats + mediumThreats;
+        }
+
+        // Add a threat to the list
+        function addThreat(threat) {
+            // Add to array
+            threats.unshift(threat);
+            if (threats.length > 100) threats.pop();
+            
+            // Update statistics
+            updateStats();
+            
+            // Update timeline
+            addTimelineEvent(threat);
+            
+            // Update chart
+            updateChart(threat);
+            
+            // Add marker to map
+            addMapMarker(threat);
+            
+            // Add to UI
+            const threatList = document.getElementById('threat-list');
+            
+            const card = document.createElement('div');
+            card.className = `card threat-card`;
+            card.id = `threat-${threat.id}`;
+            
+            const timestamp = new Date(threat.timestamp);
+            const formattedTime = timestamp.toLocaleTimeString();
+            
+            card.innerHTML = `
+                <div class="card-header ${threat.severity}">
+                    ${threat.behavior.replace('_', ' ')} 
+                    <span class="severity-badge badge ${threat.severity}">${threat.severity}</span>
+                </div>
+                <div class="card-body">
+                    <h6 class="card-title">Source: ${threat.source_ip}</h6>
+                    <p class="card-text">
+                        <span class="threat-detail">Target: ${threat.destination_ip}</span><br>
+                        <span class="threat-detail">Protocol: ${threat.protocol}</span><br>
+                        <span class="threat-detail">Time: ${formattedTime}</span><br>
+                        <span class="threat-detail">Confidence: ${Math.round(threat.confidence * 100)}%</span>
+                    </p>
+                    <div class="card-actions">
+                        <button class="btn btn-sm btn-outline-primary">Details</button>
+                        <button class="btn btn-sm btn-outline-success ms-2">Resolve</button>
+                        <button class="btn btn-sm btn-outline-danger ms-2">Block</button>
+                    </div>
+                </div>
+            `;
+            
+            // Add to the top of the list
+            if (threatList.firstChild) {
+                threatList.insertBefore(card, threatList.firstChild);
+            } else {
+                threatList.appendChild(card);
+            }
+            
+            // Limit displayed threats
+            if (threatList.children.length > 10) {
+                threatList.removeChild(threatList.lastChild);
+            }
+        }
+
+        // Add timeline event
+        function addTimelineEvent(threat) {
+            const timeline = document.getElementById('timeline');
+            
+            const event = document.createElement('div');
+            event.className = `timeline-item ${threat.severity}`;
+            
+            const timestamp = new Date(threat.timestamp);
+            const formattedTime = timestamp.toLocaleTimeString();
+            
+            event.innerHTML = `
+                <div class="timeline-time">${formattedTime}</div>
+                <div class="timeline-content">
+                    <strong>${threat.severity} threat detected:</strong> 
+                    ${threat.behavior.replace('_', ' ')} from ${threat.source_ip}
+                </div>
+            `;
+            
+            // Add to the top of the timeline
+            if (timeline.firstChild) {
+                timeline.insertBefore(event, timeline.firstChild);
+            } else {
+                timeline.appendChild(event);
+            }
+            
+            // Limit timeline events
+            if (timeline.children.length > 20) {
+                timeline.removeChild(timeline.lastChild);
+            }
+        }
+
+        // Add marker to map
+        function addMapMarker(threat) {
+            // This would normally use a geolocation service to convert IP to coordinates
+            // For demonstration, we'll use random coordinates
+            const lat = (Math.random() * 180) - 90;
+            const lng = (Math.random() * 360) - 180;
+            
+            // Create icon based on severity
+            const iconColor = threat.severity === 'HIGH' ? 'red' : 
+                             threat.severity === 'MEDIUM' ? 'orange' : 'yellow';
+            
+            const marker = L.circle([lat, lng], {
+                color: iconColor,
+                fillColor: iconColor,
+                fillOpacity: 0.5,
+                radius: 200000 // 200km
+            }).addTo(threatMap);
+            
+            // Add popup
+            marker.bindPopup(`
+                <b>${threat.behavior.replace('_', ' ')}</b><br>
+                Source: ${threat.source_ip}<br>
+                Severity: ${threat.severity}<br>
+                Protocol: ${threat.protocol}
+            `);
+            
+            // Store marker reference
+            markers.push(marker);
+            
+            // Limit markers on map
+            if (markers.length > 50) {
+                threatMap.removeLayer(markers.shift());
+            }
+        }
+
+        // Update threat chart
+        function updateChart(threat) {
+            const timestamp = new Date(threat.timestamp);
+            const hour = timestamp.getHours();
+            
+            // Update the appropriate dataset based on severity
+            let datasetIndex = 2; // Default to low
+            if (threat.severity === 'HIGH') {
+                datasetIndex = 0;
+            } else if (threat.severity === 'MEDIUM') {
+                datasetIndex = 1;
+            }
+            
+            // Increment count for this hour
+            threatChart.data.datasets[datasetIndex].data[hour]++;
+            
+            // Update chart
+            threatChart.update();
+        }
+
+        // Fetch threats from API
+        async function fetchThreats() {
+            try {
+                const response = await fetch('/api/v1/threats/recent');
+                if (response.ok) {
+                    const data = await response.json();
+                    
+                    // Clear existing threats
+                    threats = [];
+                    document.getElementById('threat-list').innerHTML = '';
+                    document.getElementById('timeline').innerHTML = '';
+                    
+                    // Reset markers
+                    markers.forEach(marker => threatMap.removeLayer(marker));
+                    markers = [];
+                    
+                    // Add each threat
+                    data.forEach(threat => addThreat(threat));
+                }
+            } catch (error) {
+                console.error('Error fetching threats:', error);
+            }
+        }
+
+        // Generate a random threat for testing
+        function generateRandomThreat() {
+            const behaviors = ['port_scan', 'sql_injection', 'brute_force', 'malware_communication', 'ddos_attack', 'xss_attempt', 'data_exfiltration'];
+            const protocols = ['TCP', 'UDP', 'HTTP', 'HTTPS', 'FTP', 'SSH', 'SMTP'];
+            const severities = ['HIGH', 'MEDIUM', 'LOW', 'NORMAL'];
+            const weights = [0.2, 0.3, 0.4, 0.1]; // More medium and low threats than high
+            
+            // Random IP generation
+            function randomIP() {
+                return `${Math.floor(Math.random() * 256)}.${Math.floor(Math.random() * 256)}.${Math.floor(Math.random() * 256)}.${Math.floor(Math.random() * 256)}`;
+            }
+            
+            // Weighted random selection
+            function weightedRandom(items, weights) {
+                let i;
+                const random = Math.random();
+                let threshold = 0;
+                
+                for (i = 0; i < weights.length; i++) {
+                    threshold += weights[i];
+                    if (random < threshold) return items[i];
+                }
+                
+                return items[i - 1];
+            }
+            
+            return {
+                id: Math.floor(Math.random() * 10000000),
+                source_ip: randomIP(),
+                destination_ip: randomIP(),
+                protocol: protocols[Math.floor(Math.random() * protocols.length)],
+                behavior: behaviors[Math.floor(Math.random() * behaviors.length)],
+                severity: weightedRandom(severities, weights),
+                confidence: Math.random() * 0.5 + 0.5, // Between 0.5 and 1.0
+                timestamp: new Date().toISOString()
+            };
+        }
+
+        // Simulate threats coming in
+        function simulateThreats() {
+            // Add a random threat
+            addThreat(generateRandomThreat());
+            
+            // Schedule next simulation
+            setTimeout(simulateThreats, Math.random() * 5000 + 2000); // 2-7 seconds
+        }
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', function() {
+            // Initialize map and chart
+            initMap();
+            initChart();
+            
+            // Add event listeners
+            document.getElementById('refresh-btn').addEventListener('click', fetchThreats);
+            document.getElementById('clear-threats').addEventListener('click', function() {
+                threats = [];
+                document.getElementById('threat-list').innerHTML = '';
+                document.getElementById('timeline').innerHTML = '';
+                updateStats();
+            });
+            
+            // Try to fetch real threats initially
+            fetchThreats()
+                .then(() => {
+                    // If no threats, start simulation
+                    if (threats.length === 0) {
+                        console.log('No threats found, starting simulation');
+                        simulateThreats();
+                    }
+                })
+                .catch(error => {
+                    console.error('Error fetching initial threats:', error);
+                    console.log('Starting simulation');
+                    simulateThreats();
+                });
+            
+            // Set a random response time (for demo)
+            document.getElementById('avg-response').textContent = 
+                Math.floor(Math.random() * 500 + 100) + 'ms';
+        });
+    </script>
+</body>
+</html>

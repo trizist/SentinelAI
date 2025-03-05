@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        body { font-family: Arial, sans-serif; line-height: 1.6; }
+        .header { background: #f44336; color: white; padding: 20px; }
+        .content { padding: 20px; }
+        .severity { font-weight: bold; }
+        .details { background: #f5f5f5; padding: 15px; margin: 15px 0; }
+        .footer { background: #333; color: white; padding: 20px; text-align: center; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Security Alert: {{ severity }} Threat Detected</h1>
+    </div>
+    
+    <div class="content">
+        <p>A security threat has been detected in your system:</p>
+        
+        <div class="details">
+            <p><strong>Threat ID:</strong> {{ id }}</p>
+            <p><strong>Time Detected:</strong> {{ timestamp }}</p>
+            <p><strong>Severity:</strong> <span class="severity">{{ severity }}</span></p>
+            <p><strong>Description:</strong> {{ description }}</p>
+            
+            <h3>Indicators:</h3>
+            <ul>
+                {% for indicator in indicators %}
+                <li>{{ indicator }}</li>
+                {% endfor %}
+            </ul>
+            
+            <p><strong>Source IP:</strong> {{ source_ip }}</p>
+            <p><strong>Confidence Score:</strong> {{ confidence_score }}</p>
+            
+            <h3>Target Systems:</h3>
+            <ul>
+                {% for system in target_systems %}
+                <li>{{ system }}</li>
+                {% endfor %}
+            </ul>
+            
+            <h3>MITRE ATT&CK Techniques:</h3>
+            <ul>
+                {% for technique in mitre_techniques %}
+                <li>{{ technique }}</li>
+                {% endfor %}
+            </ul>
+        </div>
+        
+        <p>Please take immediate action to investigate and respond to this threat.</p>
+    </div>
+    
+    <div class="footer">
+        <p>This is an automated security alert from CyberCare Security System</p>
+    </div>
+</body>
+</html>
