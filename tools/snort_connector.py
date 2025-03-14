@@ -4,6 +4,7 @@ CyberCare IDS Connector for Snort
 
 This script monitors Snort IDS logs and forwards alerts to the CyberCare API.
 It translates Snort alerts into the CyberCare threat format.
+It now includes Azure AI integration for advanced threat analysis.
 """
 
 import argparse
@@ -14,10 +15,31 @@ import requests
 import time
 import traceback
 import datetime
+import logging
 from threading import Thread
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler, FileModifiedEvent
 from db_connector import DatabaseConnector
+
+# Set up logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.FileHandler("snort_connector.log"),
+        logging.StreamHandler()
+    ]
+)
+logger = logging.getLogger(__name__)
+
+# Try to import Azure AI services
+try:
+    from app.models.ai.azure.ai_service_manager import AzureAIServiceManager
+    AZURE_AI_AVAILABLE = True
+    logger.info("Azure AI services imported successfully")
+except ImportError:
+    AZURE_AI_AVAILABLE = False
+    logger.warning("Azure AI services not available - continuing without AI enhancement")
 
 # Load environment variables if .env exists
 env_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), '.env')
@@ -39,7 +61,8 @@ DEFAULT_CONFIG = {
     "db_path": os.environ.get("SNORT_DB_PATH", "snort_threats.db"),
     "retry_unsent": os.environ.get("RETRY_UNSENT", "False").lower() in ('true', '1', 't'),
     "retry_interval": int(os.environ.get("RETRY_INTERVAL", "60")),
-    "retry_limit": int(os.environ.get("RETRY_LIMIT", "3"))
+    "retry_limit": int(os.environ.get("RETRY_LIMIT", "3")),
+    "use_ai": os.environ.get("USE_AZURE_AI", "False").lower() in ('true', '1', 't')
 }
 
 # Behavior mapping based on Snort classification
@@ -191,7 +214,7 @@ class SnortAlert:
 class SnortLogWatcher:
     """Watches Snort log files and processes new alerts"""
     
-    def __init__(self, log_path, api_url, batch_size=10, batch_mode=False, db_path=DEFAULT_CONFIG["db_path"]):
+    def __init__(self, log_path, api_url, batch_size=10, batch_mode=False, db_path=DEFAULT_CONFIG["db_path"], use_ai=DEFAULT_CONFIG["use_ai"]):
         super().__init__()
         self.log_path = log_path
         self.api_url = api_url
@@ -200,21 +223,32 @@ class SnortLogWatcher:
         self.batch_url = api_url.replace('/analyze', '/batch-analyze') if '/analyze' in api_url else f"{api_url.rstrip('/')}/batch-analyze"
         self.last_position = 0
         self.pending_alerts = []
+        self.use_ai = use_ai and AZURE_AI_AVAILABLE
         
         # Initialize database connector for persistent storage
         try:
             self.db = DatabaseConnector(db_path)
-            print(f"Using persistent storage at {db_path}")
+            logger.info(f"Using persistent storage at {db_path}")
         except Exception as e:
-            print(f"ERROR: Failed to initialize database: {str(e)}. Using in-memory storage only.")
+            logger.error(f"Failed to initialize database: {str(e)}. Using in-memory storage only.")
             self.db = None
+        
+        # Initialize Azure AI services if available and enabled
+        self.ai_service = None
+        if self.use_ai:
+            try:
+                self.ai_service = AzureAIServiceManager()
+                logger.info("Azure AI services initialized successfully")
+            except Exception as e:
+                logger.error(f"Failed to initialize Azure AI services: {str(e)}")
+                self.use_ai = False
         
         # Initialize by checking current file size
         if os.path.exists(log_path):
             self.last_position = 0  # Start from beginning to process all alerts
-            print(f"Log path exists: {log_path}, size: {os.path.getsize(log_path)} bytes")
+            logger.info(f"Log path exists: {log_path}, size: {os.path.getsize(log_path)} bytes")
         else:
-            print(f"Warning: Log file {log_path} not found")
+            logger.warning(f"Warning: Log file {log_path} not found")
     
     def on_modified(self, event):
         """Handle file modification events"""
@@ -309,45 +343,68 @@ class SnortLogWatcher:
     def send_alert(self, threat_data):
         """Send a single alert to the API"""
         try:
-            print(f"DEBUG: Sending alert to {self.api_url}")
-            print(f"DEBUG: Alert data: {json.dumps(threat_data, indent=2)}")
+            logger.info(f"Sending alert to {self.api_url}")
+            logger.debug(f"Alert data: {json.dumps(threat_data, indent=2)}")
             
             # Store the threat ID if it exists
             threat_id = threat_data.get('id', None)
             
+            # Apply AI analysis if enabled
+            ai_analysis_result = None
+            if self.use_ai and self.ai_service:
+                try:
+                    logger.info(f"Performing AI analysis for threat {threat_id}")
+                    ai_analysis_result = self.ai_service.analyze_threat(threat_data)
+                    if ai_analysis_result:
+                        logger.info(f"AI analysis complete for threat {threat_id}")
+                        
+                        # Add AI analysis summary to the threat data for API submission
+                        if 'classification' in ai_analysis_result:
+                            classification = ai_analysis_result['classification']
+                            threat_data['ai_classification'] = classification.get('threat_type', '')
+                            threat_data['severity'] = classification.get('severity', '')
+                            threat_data['confidence'] = classification.get('confidence', '')
+                            
+                        # Store full AI analysis in the database
+                        if self.db and threat_id:
+                            self.db.update_ai_analysis(threat_id, ai_analysis_result)
+                except Exception as ai_e:
+                    logger.error(f"Error during AI analysis: {str(ai_e)}")
+            
+            # Send the threat to the API
             response = requests.post(self.api_url, json=threat_data)
             
             if response.status_code == 200:
-                print(f"SUCCESS: Alert sent successfully: {response.status_code}")
-                print(f"DEBUG: Response data: {json.dumps(response.json(), indent=2)}")
+                logger.info(f"Alert sent successfully: {response.status_code}")
+                logger.debug(f"Response data: {json.dumps(response.json(), indent=2)}")
                 
                 # Update database if available
                 if self.db and threat_id:
                     try:
                         self.db.mark_as_submitted(threat_id, True, response.json())
                     except Exception as e:
-                        print(f"ERROR: Failed to update threat submission status: {str(e)}")
+                        logger.error(f"Failed to update threat submission status: {str(e)}")
             else:
-                print(f"ERROR: Failed to send alert: HTTP {response.status_code}")
-                print(f"DEBUG: Response text: {response.text}")
+                logger.error(f"Failed to send alert: HTTP {response.status_code}")
+                logger.debug(f"Response text: {response.text}")
                 
                 # Update database if available
                 if self.db and threat_id:
                     try:
                         self.db.mark_as_submitted(threat_id, False, None, f"HTTP {response.status_code}: {response.text}")
                     except Exception as e:
-                        print(f"ERROR: Failed to update threat submission status: {str(e)}")
+                        logger.error(f"Failed to update threat submission status: {str(e)}")
                         
         except Exception as e:
-            print(f"ERROR: Exception sending alert: {str(e)}")
-            print(f"DEBUG: Traceback: {traceback.format_exc()}")
+            logger.error(f"Exception sending alert: {str(e)}")
+            logger.debug(f"Traceback: {traceback.format_exc()}")
             
             # Update database if available
             if self.db and threat_id:
                 try:
                     self.db.mark_as_submitted(threat_id, False, None, str(e))
                 except Exception as db_e:
-                    print(f"ERROR: Failed to update threat submission status: {str(db_e)}")
+                    logger.error(f"Failed to update threat submission status: {str(db_e)}")
     
     def send_batch(self):
         """Send pending alerts as a batch"""
@@ -355,7 +412,7 @@ class SnortLogWatcher:
             return
         
         try:
-            print(f"Sending batch of {len(self.pending_alerts)} alerts to {self.batch_url}")
+            logger.info(f"Sending batch of {len(self.pending_alerts)} alerts to {self.batch_url}")
             
             # Store threat IDs for database updates
             threat_ids = [threat.get('id') for threat in self.pending_alerts if 'id' in threat]
@@ -363,7 +420,7 @@ class SnortLogWatcher:
             response = requests.post(self.batch_url, json=self.pending_alerts)
             
             if response.status_code in (200, 202):
-                print(f"Successfully sent batch of {len(self.pending_alerts)} alerts")
+                logger.info(f"Successfully sent batch of {len(self.pending_alerts)} alerts")
                 
                 # Update database if available
                 if self.db and threat_ids:
@@ -371,12 +428,12 @@ class SnortLogWatcher:
                         try:
                             self.db.mark_as_submitted(threat_id, True, {'status': 'success', 'batch_size': len(self.pending_alerts)})
                         except Exception as e:
-                            print(f"ERROR: Failed to update threat submission status for {threat_id}: {str(e)}")
+                            logger.error(f"Failed to update threat submission status for {threat_id}: {str(e)}")
                 
                 # Clear pending alerts after successful submission
                 self.pending_alerts = []
             else:
-                print(f"Failed to send batch: HTTP {response.status_code}, {response.text}")
+                logger.error(f"Failed to send batch: HTTP {response.status_code}, {response.text}")
                 
                 # Update database if available
                 if self.db and threat_ids:
@@ -385,10 +442,10 @@ class SnortLogWatcher:
                         try:
                             self.db.mark_as_submitted(threat_id, False, None, error_msg)
                         except Exception as e:
-                            print(f"ERROR: Failed to update threat submission status for {threat_id}: {str(e)}")
+                            logger.error(f"Failed to update threat submission status for {threat_id}: {str(e)}")
         except Exception as e:
-            print(f"Error sending batch: {str(e)}")
-            print(f"DEBUG: Traceback: {traceback.format_exc()}")
+            logger.error(f"Error sending batch: {str(e)}")
+            logger.debug(f"Traceback: {traceback.format_exc()}")
             
             # Update database if available
             if self.db and threat_ids:
@@ -396,7 +453,7 @@ class SnortLogWatcher:
                     try:
                         self.db.mark_as_submitted(threat_id, False, None, str(e))
                     except Exception as db_e:
-                        print(f"ERROR: Failed to update threat submission status for {threat_id}: {str(db_e)}")
+                        logger.error(f"Failed to update threat submission status for {threat_id}: {str(db_e)}")
 
 class SnortLogEventHandler(FileSystemEventHandler):
     """Event handler to detect log file changes"""
@@ -410,174 +467,154 @@ class SnortLogEventHandler(FileSystemEventHandler):
         self.watcher.on_modified(event)
 
 
-def main():
-    """Main entry point"""
-    parser = argparse.ArgumentParser(description="Snort IDS Connector for CyberCare")
-    
-    parser.add_argument("--log-path", dest="log_path", 
-                        default=DEFAULT_CONFIG["log_path"],
-                        help=f"Path to Snort alert log file (default: {DEFAULT_CONFIG['log_path']})")
-    
-    parser.add_argument("--api-url", dest="api_url", 
-                        default=DEFAULT_CONFIG["api_url"],
-                        help=f"CyberCare API endpoint for threat submission (default: {DEFAULT_CONFIG['api_url']})")
-    
-    parser.add_argument("--poll-interval", dest="poll_interval", 
-                        type=int, default=DEFAULT_CONFIG["poll_interval"],
-                        help=f"Polling interval in seconds (default: {DEFAULT_CONFIG['poll_interval']})")
-    
-    parser.add_argument("--batch", dest="batch_mode", 
-                        action="store_true",
-                        help="Enable batch mode for alert submission")
-    
-    parser.add_argument("--batch-size", dest="batch_size", 
-                        type=int, default=DEFAULT_CONFIG["batch_size"],
-                        help=f"Batch size for alert submission (default: {DEFAULT_CONFIG['batch_size']})")
-    
-    parser.add_argument("--debug-mode", dest="debug_mode",
-                        action="store_true",
-                        help="Enable debug mode with verbose logging")
-                        
-    parser.add_argument("--db-path", dest="db_path",
-                        default=DEFAULT_CONFIG["db_path"],
-                        help=f"Path to database file for persistent storage (default: {DEFAULT_CONFIG['db_path']})")
-    
-    parser.add_argument("--stats", dest="show_stats",
-                        action="store_true",
-                        help="Show statistics from the database and exit")
-    
-    args = parser.parse_args()
-    
-    # Check if just showing stats
-    if args.show_stats:
+def retry_unsent_alerts(watcher, retry_interval, retry_limit):
+    """Periodically retry sending unsent alerts"""
+    retry_count = 0
+    while True:
         try:
-            db = DatabaseConnector(args.db_path)
-            stats = db.get_stats()
-            print("\n📊 CyberCare Snort Connector Statistics")
-            print(f"   Database path: {stats['database_path']}")
-            print(f"   Total threats: {stats.get('total_threats', 'N/A')}")
-            print(f"   Submitted threats: {stats.get('submitted_threats', 'N/A')}")
-            print(f"   Pending threats: {stats.get('pending_threats', 'N/A')}")
+            # Sleep first to allow initial processing to complete
+            time.sleep(retry_interval)
             
-            if 'behavior_counts' in stats:
-                print("\n   Behavior counts:")
-                for behavior, count in stats['behavior_counts'].items():
-                    print(f"     - {behavior}: {count}")
-            
-            if 'recent_submission_stats' in stats:
-                print("\n   Recent submission stats (24h):")
-                print(f"     - Success: {stats['recent_submission_stats'].get('success', 0)}")
-                print(f"     - Failure: {stats['recent_submission_stats'].get('failure', 0)}")
-            
-            return
-        except Exception as e:
-            print(f"Error getting statistics: {str(e)}")
-            return
-    
-    # Print banner
-    print("🚀 Starting CyberCare Snort Connector")
-    print(f"   API URL: {args.api_url}")
-    print(f"   Log file: {args.log_path}")
-    print(f"   Mode: {'Batch' if args.batch_mode else 'Single alert'}")
-    print(f"   Debug mode: {'Enabled' if args.debug_mode else 'Disabled'}")
-    print(f"   Database: {args.db_path}")
-    
-    # Create watcher
-    watcher = SnortLogWatcher(args.log_path, args.api_url, args.batch_size, args.batch_mode, args.db_path)
-    
-    # Check database connectivity
-    if watcher.db and watcher.db.initialized:
-        print("   Database initialized successfully")
-        
-        # Check for unsent threats
-        try:
-            unsent = watcher.db.get_unsent_threats()
-            if unsent:
-                print(f"   Found {len(unsent)} unsent threats in database")
-                if args.batch_mode and len(unsent) >= args.batch_size:
-                    print(f"   Will attempt to send unsent threats in batches")
-                    for i in range(0, len(unsent), args.batch_size):
-                        batch = unsent[i:i+args.batch_size]
-                        watcher.pending_alerts = batch
-                        watcher.send_batch()
-                elif not args.batch_mode and len(unsent) > 0:
-                    print(f"   Will attempt to send unsent threats individually")
-                    for threat in unsent[:10]:  # Limit to first 10 to avoid flooding
-                        watcher.send_alert(threat)
-        except Exception as e:
-            print(f"   Error checking for unsent threats: {str(e)}")
-    
-    # Special debug test mode - process all alerts immediately
-    if args.debug_mode:
-        print("DEBUG MODE: Processing log file immediately")
-        print(f"DEBUG MODE: Log file exists: {os.path.exists(args.log_path)}")
-        if os.path.exists(args.log_path):
-            print(f"DEBUG MODE: Log file size: {os.path.getsize(args.log_path)} bytes")
-            with open(args.log_path, 'r') as f:
-                content = f.read()
-                print(f"DEBUG MODE: Read {len(content)} bytes from log file")
-            
-            # Process all alerts immediately
-            watcher.process_new_alerts()
-            
-            # Process once more to make sure we caught everything
-            time.sleep(1)
-            watcher.process_new_alerts()
-            
-            print("DEBUG MODE: Processing complete, exiting")
-            return
-        else:
-            print(f"DEBUG MODE: Error - Log file {args.log_path} does not exist")
-            return
-    
-    # Check if log path exists
-    if not os.path.exists(args.log_path):
-        print(f"WARNING: Log file {args.log_path} does not exist")
-    
-    # If log file directory exists, use watchdog for monitoring
-    log_dir = os.path.dirname(args.log_path)
-    if os.path.isdir(log_dir):
-        print(f"   Using filesystem monitoring")
-        # Create event handler
-        event_handler = SnortLogEventHandler(watcher)
-        
-        # Set up observer
-        observer = Observer()
-        observer.schedule(event_handler, log_dir, recursive=False)
-        observer.start()
-        
-        try:
-            # Process existing alerts first
-            print("Processing existing alerts...")
-            watcher.process_new_alerts()
-            
-            # Keep the main thread running
-            while True:
-                time.sleep(args.poll_interval)
-                # Also poll periodically in case file watching misses something
-                watcher.process_new_alerts()
+            if not watcher.db:
+                logger.warning("Database not available, can't retry unsent threats")
+                return
                 
-        except KeyboardInterrupt:
-            print("Stopping connector...")
-            observer.stop()
+            unsent_threats = watcher.db.get_unsent_threats()
+            if unsent_threats:
+                logger.info(f"Found {len(unsent_threats)} unsent threats to retry")
+                
+                for threat in unsent_threats:
+                    # Check if retry limit has been reached
+                    if 'retry_count' in threat and threat['retry_count'] >= retry_limit:
+                        logger.warning(f"Retry limit reached for threat {threat.get('id')}, marking as permanently failed")
+                        watcher.db.mark_as_permanently_failed(threat.get('id'))
+                        continue
+                    
+                    # Process threat with AI if enabled
+                    if watcher.use_ai and watcher.ai_service:
+                        try:
+                            logger.info(f"Performing AI analysis for unsent threat {threat.get('id')}")
+                            ai_analysis_result = watcher.ai_service.analyze_threat(threat)
+                            if ai_analysis_result:
+                                # Update the threat with AI analysis information
+                                if 'classification' in ai_analysis_result:
+                                    classification = ai_analysis_result['classification']
+                                    threat['ai_classification'] = classification.get('threat_type', '')
+                                    threat['severity'] = classification.get('severity', '')
+                                    threat['confidence'] = classification.get('confidence', '')
+                                
+                                # Store AI analysis in database
+                                watcher.db.update_ai_analysis(threat.get('id'), ai_analysis_result)
+                        except Exception as ai_e:
+                            logger.error(f"Error during AI analysis for retry: {str(ai_e)}")
+                    
+                    # Attempt to send the threat
+                    watcher.send_alert(threat)
+                    
+                    # Update retry count
+                    retry_count = threat.get('retry_count', 0) + 1
+                    watcher.db.update_retry_count(threat.get('id'), retry_count)
+                    
+                    # Add a small delay between retries to avoid flooding the API
+                    time.sleep(1)
+            else:
+                logger.debug("No unsent threats found to retry")
+                
         except Exception as e:
-            print(f"Error in main loop: {str(e)}")
-            observer.stop()
-        finally:    
-            observer.join()
-    else:
-        print(f"Log directory {log_dir} not found, using polling mode")
-        poll_mode(watcher, args)
+            logger.error(f"Error in retry thread: {str(e)}")
+            logger.debug(traceback.format_exc())
+
+def watch_mode(watcher, log_path):
+    """Use file system events to monitor log file changes"""
+    log_dir = os.path.dirname(log_path)
+    logger.info(f"Using file system monitoring for {log_dir}")
+    
+    # Create event handler for file changes
+    event_handler = SnortLogEventHandler(watcher)
+    
+    # Set up observer
+    observer = Observer()
+    observer.schedule(event_handler, log_dir, recursive=False)
+    observer.start()
+    
+    try:
+        # Keep the main thread alive
+        while True:
+            time.sleep(60)
+    except KeyboardInterrupt:
+        logger.info("Stopping file system monitoring")
+        observer.stop()
+    finally:
+        observer.join()
 
 def poll_mode(watcher, args):
     """Use polling mode for the log file"""
-    print(f"Using polling mode with {args.poll_interval} second interval")
+    logger.info(f"Starting polling mode with interval {args.poll_interval} seconds")
+    
     try:
         while True:
             watcher.process_new_alerts()
             time.sleep(args.poll_interval)
     except KeyboardInterrupt:
-        print("Stopping connector...")
+        logger.info("Stopping polling mode")
+
+
+def main():
+    """Main entry point"""
+    parser = argparse.ArgumentParser(description='Snort log watcher and alert forwarder')
+    parser.add_argument('--log-path', type=str, help='Path to Snort alert log', default=DEFAULT_CONFIG["log_path"])
+    parser.add_argument('--api-url', type=str, help='URL for the CyberCare API', default=DEFAULT_CONFIG["api_url"])
+    parser.add_argument('--poll-interval', type=int, help='Polling interval in seconds', default=DEFAULT_CONFIG["poll_interval"])
+    parser.add_argument('--batch-size', type=int, help='Number of alerts to batch', default=DEFAULT_CONFIG["batch_size"])
+    parser.add_argument('--batch-mode', action='store_true', help='Enable batch mode', default=DEFAULT_CONFIG["batch_mode"])
+    parser.add_argument('--db-path', type=str, help='Path to SQLite database', default=DEFAULT_CONFIG["db_path"])
+    parser.add_argument('--retry-unsent', action='store_true', help='Retry unsent alerts', default=DEFAULT_CONFIG["retry_unsent"])
+    parser.add_argument('--retry-interval', type=int, help='Retry interval in seconds', default=DEFAULT_CONFIG["retry_interval"])
+    parser.add_argument('--retry-limit', type=int, help='Maximum number of retries', default=DEFAULT_CONFIG["retry_limit"])
+    parser.add_argument('--use-ai', action='store_true', help='Enable Azure AI services for threat analysis', default=DEFAULT_CONFIG["use_ai"])
+    parser.add_argument('--watch', action='store_true', help='Use watchdog instead of polling')
+    args = parser.parse_args()
+    
+    if args.use_ai and not AZURE_AI_AVAILABLE:
+        logger.warning("Azure AI services were requested but are not available. Continuing without AI enhancement.")
+    
+    logger.info("Starting Snort connector with the following configuration:")
+    logger.info(f"  Log path: {args.log_path}")
+    logger.info(f"  API URL: {args.api_url}")
+    logger.info(f"  Poll interval: {args.poll_interval} seconds")
+    logger.info(f"  Batch size: {args.batch_size}")
+    logger.info(f"  Batch mode: {args.batch_mode}")
+    logger.info(f"  Database path: {args.db_path}")
+    logger.info(f"  Retry unsent: {args.retry_unsent}")
+    logger.info(f"  Retry interval: {args.retry_interval} seconds")
+    logger.info(f"  Retry limit: {args.retry_limit}")
+    logger.info(f"  Use AI: {args.use_ai}")
+    logger.info(f"  Watch mode: {args.watch}")
+    
+    # Create the watcher
+    watcher = SnortLogWatcher(
+        args.log_path, 
+        args.api_url, 
+        args.batch_size, 
+        args.batch_mode, 
+        args.db_path,
+        args.use_ai
+    )
+    
+    # Process any existing alerts
+    watcher.process_new_alerts()
+    
+    # Retry unsent alerts if enabled
+    if args.retry_unsent and watcher.db:
+        retry_thread = Thread(target=retry_unsent_alerts, args=(watcher, args.retry_interval, args.retry_limit))
+        retry_thread.daemon = True
+        retry_thread.start()
+    
+    # Use watchdog or polling based on argument
+    if args.watch:
+        watch_mode(watcher, args.log_path)
+    else:
+        poll_mode(watcher, args)
 
 if __name__ == "__main__":
     main()

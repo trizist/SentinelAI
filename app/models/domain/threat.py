@@ -2,6 +2,16 @@ from pydantic import BaseModel
 from typing import List, Optional
 from datetime import datetime
 
+class ThreatData(BaseModel):
+    """
+    Model for submitting threat data for analysis
+    """
+    source_ip: Optional[str] = None
+    description: str
+    timestamp: Optional[datetime] = None
+    indicators: Optional[List[str]] = None
+    context: Optional[str] = None
+    
 class ThreatAlert(BaseModel):
     id: str
     timestamp: datetime

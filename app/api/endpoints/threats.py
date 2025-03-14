@@ -1,16 +1,17 @@
-from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
 from fastapi.responses import JSONResponse
-from typing import Dict, Any, List, Optional
 from pydantic import BaseModel, Field
-from app.services.threat_detection import ThreatDetectionService
-from app.api.deps import get_current_user
-from app.db.models import User
+from typing import Dict, List, Optional, Any
+from datetime import datetime, timedelta
+import uuid
 import logging
 import time
-from datetime import datetime, timedelta
 import random
-import uuid
 import asyncio
+from app.models.domain.threat import ThreatData, ThreatResponse
+from app.services.threat_detection import ThreatDetectionService
+from app.db.models import User
+from app.api.deps import get_current_user
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -159,6 +160,135 @@ async def get_recent_threats() -> JSONResponse:
         status_code=status.HTTP_200_OK,
         content=_recent_threats
     )
+
+@router.post("/{threat_id}/resolve")
+async def resolve_threat(
+    threat_id: str,
+    current_user: User = Depends(get_current_user)
+) -> JSONResponse:
+    """
+    Mark a threat as resolved after investigation
+    """
+    try:
+        # Find the threat in our temporary storage
+        threat_index = next((i for i, t in enumerate(_recent_threats) if t.get("id") == threat_id), None)
+        
+        if threat_index is None:
+            return JSONResponse(
+                status_code=status.HTTP_404_NOT_FOUND,
+                content={"error": f"Threat with ID {threat_id} not found"}
+            )
+        
+        # Update the threat status
+        _recent_threats[threat_index]["status"] = "RESOLVED"
+        _recent_threats[threat_index]["resolved_by"] = current_user.username
+        _recent_threats[threat_index]["resolved_at"] = datetime.utcnow().isoformat()
+        
+        logger.info(f"Threat {threat_id} resolved by {current_user.username}")
+        
+        return JSONResponse(
+            status_code=status.HTTP_200_OK,
+            content={
+                "message": f"Threat {threat_id} marked as resolved",
+                "threat": _recent_threats[threat_index]
+            }
+        )
+    except Exception as e:
+        logger.error(f"Error resolving threat: {str(e)}")
+        return JSONResponse(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            content={"error": f"Failed to resolve threat: {str(e)}"}
+        )
+
+@router.post("/{threat_id}/block")
+async def block_threat(
+    threat_id: str,
+    current_user: User = Depends(get_current_user)
+) -> JSONResponse:
+    """
+    Block the source IP of a threat
+    """
+    try:
+        # Find the threat in our temporary storage
+        threat_index = next((i for i, t in enumerate(_recent_threats) if t.get("id") == threat_id), None)
+        
+        if threat_index is None:
+            return JSONResponse(
+                status_code=status.HTTP_404_NOT_FOUND,
+                content={"error": f"Threat with ID {threat_id} not found"}
+            )
+        
+        # Get the source IP
+        source_ip = _recent_threats[threat_index].get("source_ip")
+        if not source_ip:
+            return JSONResponse(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                content={"error": "Threat doesn't have a source IP to block"}
+            )
+        
+        # Update the threat status
+        _recent_threats[threat_index]["status"] = "BLOCKED"
+        _recent_threats[threat_index]["blocked_by"] = current_user.username
+        _recent_threats[threat_index]["blocked_at"] = datetime.utcnow().isoformat()
+        
+        # In a real-world scenario, you would integrate with a firewall or IPS here
+        # For now, we'll just simulate the blocking
+        logger.info(f"Source IP {source_ip} from threat {threat_id} blocked by {current_user.username}")
+        
+        return JSONResponse(
+            status_code=status.HTTP_200_OK,
+            content={
+                "message": f"Source IP {source_ip} from threat {threat_id} has been blocked",
+                "threat": _recent_threats[threat_index]
+            }
+        )
+    except Exception as e:
+        logger.error(f"Error blocking threat: {str(e)}")
+        return JSONResponse(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            content={"error": f"Failed to block threat: {str(e)}"}
+        )
+
+@router.post("/{threat_id}/escalate")
+async def escalate_threat(
+    threat_id: str,
+    current_user: User = Depends(get_current_user)
+) -> JSONResponse:
+    """
+    Escalate a threat to an incident for further investigation
+    """
+    try:
+        # Find the threat in our temporary storage
+        threat_index = next((i for i, t in enumerate(_recent_threats) if t.get("id") == threat_id), None)
+        
+        if threat_index is None:
+            return JSONResponse(
+                status_code=status.HTTP_404_NOT_FOUND,
+                content={"error": f"Threat with ID {threat_id} not found"}
+            )
+        
+        # Update the threat status
+        _recent_threats[threat_index]["status"] = "ESCALATED"
+        _recent_threats[threat_index]["escalated_by"] = current_user.username
+        _recent_threats[threat_index]["escalated_at"] = datetime.utcnow().isoformat()
+        
+        # In a real scenario, this would create a new incident record in the database
+        # and trigger notifications to the incident response team
+        logger.info(f"Threat {threat_id} escalated to incident by {current_user.username}")
+        
+        return JSONResponse(
+            status_code=status.HTTP_200_OK,
+            content={
+                "message": f"Threat {threat_id} escalated to incident",
+                "threat": _recent_threats[threat_index]
+            }
+        )
+    except Exception as e:
+        logger.error(f"Error escalating threat: {str(e)}")
+        return JSONResponse(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            content={"error": f"Failed to escalate threat: {str(e)}"}
+        )
 
 # Background task for processing batches
 async def process_batch(job_id: str, threats: List[ThreatData]):

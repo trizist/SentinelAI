@@ -1,0 +1,7 @@
+{
+  "azure_services_enabled": false,
+  "use_gpt4o": true,
+  "gpt4o_api_key": "",
+  "gpt4o_endpoint": "https://api.openai.com/v1",
+  "hide_disabled_services": true
+}

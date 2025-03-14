@@ -1,16 +1,19 @@
-from fastapi import FastAPI, Depends, APIRouter
+from fastapi import FastAPI, Depends, APIRouter, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import OAuth2PasswordBearer
 from fastapi.staticfiles import StaticFiles
+from fastapi.responses import JSONResponse
 from app.core.config import settings
 # Gradually add routers one by one to isolate any issues
-from app.api.endpoints import auth, incidents, analysis, threats
+from app.api.endpoints import auth, incidents, analysis, threats, ai
 from app.db.base import Base, engine
 import logging
 from datetime import datetime
 import asyncio
 import redis.asyncio as redis
 import os
+import httpx
+from app.models.ai.azure.ai_service_manager import AzureAIServiceManager
 
 # Configure logging
 logging.basicConfig(
@@ -29,6 +32,9 @@ app = FastAPI(
     openapi_url=f"{settings.API_V1_STR}/openapi.json"
 )
 
+# Initialize AI service manager for direct access
+ai_service_manager = AzureAIServiceManager()
+
 # Set up CORS middleware with detailed configuration
 app.add_middleware(
     CORSMiddleware,
@@ -46,6 +52,49 @@ api_router.include_router(auth.router, prefix="/auth", tags=["auth"])
 api_router.include_router(incidents.router, prefix="/incidents", tags=["incidents"])
 api_router.include_router(analysis.router, prefix="/analysis", tags=["analysis"])
 api_router.include_router(threats.router, prefix="/threats", tags=["threats"])
+api_router.include_router(ai.router, prefix="/ai", tags=["ai"])
+
+# Add proxy endpoint to forward requests to the API
+@app.get("/api/proxy/threats/recent")
+async def proxy_recent_threats():
+    """
+    Proxy endpoint to forward requests from frontend to backend API
+    and avoid CORS issues.
+    """
+    try:
+        # Use the Docker service name 'web' instead of 'localhost'
+        async with httpx.AsyncClient() as client:
+            resp = await client.get("http://web:8000/api/v1/threats/recent")
+            return JSONResponse(
+                status_code=resp.status_code,
+                content=resp.json()
+            )
+    except Exception as e:
+        logger.error(f"Error proxying request to API: {str(e)}")
+        return JSONResponse(
+            status_code=500,
+            content={"error": f"API proxy error: {str(e)}"}
+        )
+
+# Add services status endpoint
+@app.get("/api/v1/services/status")
+async def get_services_status():
+    """
+    Get the status of all Azure AI services used in the system.
+    This endpoint is used by the dashboard to display service availability.
+    """
+    try:
+        service_status = ai_service_manager.get_services_status()
+        return JSONResponse(
+            status_code=200,
+            content=service_status
+        )
+    except Exception as e:
+        logger.error(f"Error getting service status: {str(e)}")
+        return JSONResponse(
+            status_code=500,
+            content={"error": f"Failed to get service status: {str(e)}"}
+        )
 
 # Include API router
 app.include_router(api_router, prefix=settings.API_V1_STR)

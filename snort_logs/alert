@@ -1,54 +1,39 @@
-[**] [1:1000001:1] SNORT ALERT: SQL Injection attempt [**]
-[Classification: Web Application Attack] [Priority: 1] 
-03/03-21:25:54.942969 192.168.10.5:54321 -> 10.0.0.10:443
-TCP TTL:64 TOS:0x0 ID:0 IpLen:20 DgmLen:60 DF
-***AP*** Seq: 0x0  Ack: 0x0  Win: 0x0  TcpLen: 40
-TCP Options (5) => MSS: 1460 SackOK TS: 77777 0 NOP WS: 7
-[Xref => http://example.org/sql-injection]
+[**] [1:1001:1] SQL Injection attempt [**]
+[Classification: Web Application Attack] [Priority: 1]
+03/10-04:28:10.352638 192.168.1.100:49213 -> 192.168.1.5:80
 
-[**] [1:1000002:1] SNORT ALERT: Port Scanning Activity [**]
-[Classification: Network Scan] [Priority: 2] 
-03/04-12:18:54.123456 192.168.10.20:60123 -> 10.0.0.15:22
-TCP TTL:128 TOS:0x0 ID:25643 IpLen:20 DgmLen:48 DF
-******S* Seq: 0x1A2B3C4D  Ack: 0x0  Win: 0x2000  TcpLen: 28
-TCP Options (4) => MSS: 1460 NOP NOP SackOK
+[**] [1:1002:1] Suspicious outbound SSH connection [**]
+[Classification: Potentially Bad Traffic] [Priority: 2]
+03/10-04:28:45.123456 192.168.1.101:55123 -> 45.33.22.11:22
 
-[**] [1:1000003:1] SNORT ALERT: XSS Attack Detected [**]
-[Classification: Web Application Attack] [Priority: 1] 
-03/04-12:22:54.987654 192.168.10.30:33333 -> 10.0.0.25:80
-TCP TTL:64 TOS:0x0 ID:12345 IpLen:20 DgmLen:80 DF
-***AP*** Seq: 0xDEADBEEF  Ack: 0x12345678  Win: 0x2000  TcpLen: 40
-TCP Options (5) => MSS: 1460 SackOK TS: 88888 0 NOP WS: 7
-[Xref => http://example.org/xss-attack]
+[**] [1:1003:1] NMAP TCP Scan [**]
+[Classification: Attempted Information Leak] [Priority: 2]
+03/10-04:29:02.778901 192.168.1.102:44123 -> 192.168.1.1:443
 
-[**] [1:1000004:1] SNORT ALERT: Brute Force SSH Login Attempts [**]
-[Classification: Attempted User Privilege Gain] [Priority: 1] 
-03/04-12:23:12.345678 192.168.10.40:44444 -> 10.0.0.35:22
-TCP TTL:64 TOS:0x0 ID:9876 IpLen:20 DgmLen:60 DF
-***AP*** Seq: 0xABCDEF  Ack: 0x87654321  Win: 0x2000  TcpLen: 32
-TCP Options (3) => MSS: 1460 SackOK TS: 99999
-[Xref => http://example.org/brute-force]
+[**] [1:1004:1] Potential C&C channel detected [**]
+[Classification: Trojan Activity] [Priority: 1] 
+03/10-04:29:30.112233 192.168.1.103:39872 -> 203.0.113.5:8080
 
-[**] [1:1000005:1] SNORT ALERT: Malware Command and Control Traffic [**]
-[Classification: Potentially Bad Traffic] [Priority: 1] 
-03/04-12:45:32.123456 192.168.10.50:45678 -> 203.0.113.100:8080
-TCP TTL:64 TOS:0x0 ID:54321 IpLen:20 DgmLen:120 DF
-***AP*** Seq: 0xABCDEF01  Ack: 0x76543210  Win: 0x2000  TcpLen: 40
-TCP Options (5) => MSS: 1460 SackOK TS: 123456 654321 NOP WS: 8
-[Xref => http://example.org/c2-traffic]
+[**] [1:1005:1] Malicious file download [**]
+[Classification: Malware Command and Control] [Priority: 1]
+03/10-04:30:15.445566 172.16.5.10:52413 -> 192.168.1.104:80
 
-[**] [1:1000006:1] SNORT ALERT: Cross-Site Request Forgery (CSRF) [**]
-[Classification: Web Application Attack] [Priority: 1] 
-03/04-12:55:18.765432 192.168.10.60:49152 -> 10.0.0.30:443
-TCP TTL:64 TOS:0x0 ID:12345 IpLen:20 DgmLen:100 DF
-***AP*** Seq: 0x12345678  Ack: 0x87654321  Win: 0x2000  TcpLen: 40
-TCP Options (5) => MSS: 1460 SackOK TS: 111222 222111 NOP WS: 8
-[Xref => http://example.org/csrf]
+[**] [1:1006:1] DNS request for known malicious domain [**]
+[Classification: A Network Trojan was Detected] [Priority: 1]
+03/10-04:31:02.998877 192.168.1.105:53124 -> 8.8.8.8:53
 
-[**] [1:1000007:1] SNORT ALERT: Denial of Service Attack [**]
-[Classification: Attempted Denial of Service] [Priority: 2] 
-03/04-13:05:22.333444 192.168.10.70:33333 -> 10.0.0.35:80
-TCP TTL:128 TOS:0x0 ID:54321 IpLen:20 DgmLen:120 DF
-***AP*** Seq: 0x87654321  Ack: 0x12345678  Win: 0x3000  TcpLen: 40
-TCP Options (5) => MSS: 1460 SackOK TS: 555666 666555 NOP WS: 8
-[Xref => http://example.org/dos-attack]
+[**] [1:1007:1] Unusual amount of DNS queries [**]
+[Classification: Potential Corporate Privacy Violation] [Priority: 2]
+03/10-04:31:45.662211 192.168.1.106:59999 -> 1.1.1.1:53
+
+[**] [1:1008:1] Executable code was detected [**]
+[Classification: Executable code was detected] [Priority: 1]
+03/10-04:32:25.334455 192.168.1.107:55443 -> 192.168.1.108:445
+
+[**] [1:1009:1] Multiple login failures [**]
+[Classification: An attempted administrator privilege gain] [Priority: 1]
+03/10-04:33:15.123987 45.11.22.33:44123 -> 192.168.1.109:22
+
+[**] [1:1010:1] Abnormal HTTP traffic pattern detected [**]
+[Classification: Suspicious Activity] [Priority: 2]
+03/10-04:34:02.987654 192.168.1.110:60123 -> 203.0.113.10:80

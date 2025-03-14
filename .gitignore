@@ -24,7 +24,7 @@ var/
 venv/
 ENV/
 env/
-.env
+
 .venv
 env.bak/
 venv.bak/
@@ -66,6 +66,9 @@ coverage.xml
 *.crt
 .env
 .env.*
+settings.json
+*_config.json
+*secrets*.json
 
 # Ignore default SQLite database files
 snort_threats.db

@@ -14,6 +14,12 @@ An intelligent cybersecurity response system that leverages AI to detect, analyz
   - Statistics and reporting on threat patterns
   - Retry mechanism for failed API submissions
   - Database-backed reliability even during service disruptions
+- **Azure AI Integration**: Enhanced threat analysis using Azure AI services
+  - OpenAI for threat classification and response generation
+  - Anomaly Detector for identifying unusual behavior
+  - Content Safety for scanning URLs and text
+  - AI Search for threat intelligence
+  - Metrics Advisor for system performance monitoring
 
 ## Setup
 
@@ -184,107 +190,45 @@ The Snort connector monitors Snort IDS alert logs and forwards detected threats 
 python tools/snort_connector.py --log-path /path/to/snort/alert --api-url http://localhost:8005/api/v1/threats/analyze --poll-interval 5
 
 # Use file system monitoring (more efficient)
-python tools/snort_connector.py --log-path /path/to/snort/alert --api-url http://localhost:8005/api/v1/threats/analyze --monitor
+python tools/snort_connector.py --log-path /path/to/snort/alert --api-url http://localhost:8005/api/v1/threats/analyze --watch
 
 # Process alerts in batch mode
-python tools/snort_connector.py --log-path /path/to/snort/alert --api-url http://localhost:8005/api/v1/threats/analyze --batch --batch-size 10
+python tools/snort_connector.py --log-path /path/to/snort/alert --api-url http://localhost:8005/api/v1/threats/analyze --batch-mode --batch-size 10
+
+# Enable Azure AI integration for enhanced threat analysis
+python tools/snort_connector.py --log-path /path/to/snort/alert --api-url http://localhost:8005/api/v1/threats/analyze --use-ai
 
 # Specify custom database path for persistent storage
 python tools/snort_connector.py --log-path /path/to/snort/alert --db-path /path/to/custom/database.db
 
-# Enable debug mode for detailed logging
-python tools/snort_connector.py --log-path /path/to/snort/alert --debug-mode
+# Configure retry for unsent alerts
+python tools/snort_connector.py --log-path /path/to/snort/alert --retry-unsent --retry-interval 60 --retry-limit 3
 ```
 
-### Threat Database Management
+## Environment Variables
 
-CyberCare now includes persistent storage for threats using SQLite. The `test_threat.py` tool provides several options for managing the threat database:
-
-```bash
-# Generate test threats and submit them to the API
-python test_threat.py --api-url http://localhost:8005/api/v1/threats/analyze
-
-# Display statistics about threats in the database
-python test_threat.py --stats
-
-# List threats that have not been successfully submitted to the API
-python test_threat.py --list-unsent
-
-# Retry sending threats that failed to submit previously
-python test_threat.py --retry-unsent
-
-# Use a custom database path
-python test_threat.py --db-path /path/to/custom/database.db --stats
-
-# Set a retry limit for failed submissions
-python test_threat.py --retry-unsent --retry-limit 3
-```
-
-### Database Schema
-
-The CyberCare threat database uses a simple SQLite schema:
-
-- **threats**: Stores all detected security threats
-  - `id`: Unique identifier for the threat (primary key)
-  - `source_ip`: Source IP address of the threat
-  - `destination_ip`: Destination IP address of the threat 
-  - `protocol`: Network protocol used (HTTP, HTTPS, SSH, etc.)
-  - `behavior`: Categorized behavior type (e.g., web_attack, dos, malware_c2)
-  - `timestamp`: Original timestamp from the alert
-  - `creation_time`: When the threat was stored in the database
-  - `submitted`: Flag indicating if the threat was successfully submitted to API (0/1)
-  - `submission_time`: When the threat was last submitted to the API
-  - `api_response`: JSON response from the API submission
-  - `additional_data`: JSON field containing extra threat details
-
-The database files are created automatically if they don't exist:
-- Default Snort connector database: `snort_threats.db`
-- Default test script database: `test_threats.db`
-
-## Dashboard
-
-CyberCare includes a real-time security dashboard for threat visualization at `http://localhost:8005/dashboard/`.
-
-## Testing
-
-### Running Tests
-
-Run all tests:
-```bash
-pytest
-```
-
-Run specific test modules:
-```bash
-pytest tests/test_auth.py
-```
-
-Run with coverage report:
-```bash
-pytest --cov=app tests/
-```
-
-### Manual Testing
-
-1. Test the health endpoint:
-```bash
-curl http://localhost:8005/api/v1/health
-```
-
-2. Test the threat analysis:
-```bash
-curl -X POST -H "Content-Type: application/json" -d '{"source_ip":"192.168.1.1","additional_data":{}}' http://localhost:8005/api/v1/threats/analyze
-```
-
-3. Test batch analysis:
-```bash
-curl -X POST -H "Content-Type: application/json" -d '[{"source_ip":"192.168.1.1"},{"source_ip":"10.0.0.1"}]' http://localhost:8005/api/v1/threats/batch-analyze
-```
-
-4. Check analysis status:
-```bash
-curl http://localhost:8005/api/v1/threats/status/{job_id}
-```
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `DATABASE_URL` | PostgreSQL connection string | `postgresql+asyncpg://postgres:postgres@db:5432/cybercare` |
+| `REDIS_URL` | Redis connection string | `redis://redis:6379/0` |
+| `SECRET_KEY` | JWT secret key | `changeme` |
+| `ACCESS_TOKEN_EXPIRE_MINUTES` | Token expiration time | `30` |
+| `LOG_LEVEL` | Logging level | `INFO` |
+| `LOG_FILE` | Log file path | `app.log` |
+| `USE_AZURE_AI` | Enable Azure AI services | `False` |
+| `AZURE_OPENAI_ENDPOINT` | Azure OpenAI service endpoint | - |
+| `AZURE_OPENAI_KEY` | Azure OpenAI API key | - |
+| `AZURE_OPENAI_DEPLOYMENT_ID` | Azure OpenAI deployment ID | - |
+| `AZURE_ANOMALY_DETECTOR_ENDPOINT` | Azure Anomaly Detector endpoint | - |
+| `AZURE_ANOMALY_DETECTOR_KEY` | Azure Anomaly Detector API key | - |
+| `AZURE_CONTENT_SAFETY_ENDPOINT` | Azure Content Safety endpoint | - |
+| `AZURE_CONTENT_SAFETY_KEY` | Azure Content Safety API key | - |
+| `AZURE_SEARCH_ENDPOINT` | Azure AI Search endpoint | - |
+| `AZURE_SEARCH_KEY` | Azure AI Search API key | - |
+| `AZURE_SEARCH_INDEX_NAME` | Azure AI Search index name | - |
+| `AZURE_METRICS_ADVISOR_ENDPOINT` | Azure Metrics Advisor endpoint | - |
+| `AZURE_METRICS_ADVISOR_SUBSCRIPTION_KEY` | Azure Metrics Advisor subscription key | - |
+| `AZURE_METRICS_ADVISOR_API_KEY` | Azure Metrics Advisor API key | - |
 
 ## Project Structure
 
@@ -306,7 +250,14 @@ cybercare/
 │   │   └── models.py           # SQLAlchemy models
 │   ├── models/
 │   │   ├── ai/
-│   │   │   └── threat_classifier.py  # AI threat classification
+│   │   │   ├── threat_classifier.py  # AI threat classification
+│   │   │   └── azure/          # Azure AI services integration
+│   │   │       ├── openai_service.py        # Azure OpenAI integration
+│   │   │       ├── anomaly_detector.py      # Azure Anomaly Detector
+│   │   │       ├── content_safety.py        # Azure Content Safety
+│   │   │       ├── search_service.py        # Azure AI Search
+│   │   │       ├── metrics_advisor.py       # Azure Metrics Advisor
+│   │   │       └── ai_service_manager.py    # Unified AI service manager
 │   │   └── domain/
 │   │       ├── user.py         # User domain models
 │   │       └── threat.py       # Threat domain models
@@ -326,48 +277,13 @@ cybercare/
 └── README.md                   # Project documentation
 ```
 
-## Environment Variables
-
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `DATABASE_URL` | PostgreSQL connection string | `postgresql+asyncpg://postgres:postgres@db:5432/cybercare` |
-| `REDIS_URL` | Redis connection string | `redis://redis:6379/0` |
-| `SECRET_KEY` | JWT secret key | `changeme` |
-| `ACCESS_TOKEN_EXPIRE_MINUTES` | Token expiration time | `30` |
-| `LOG_LEVEL` | Logging level | `INFO` |
-| `LOG_FILE` | Log file path | `app.log` |
-
-## Troubleshooting
-
-### Common Issues
-
-1. **Database Connection Errors**
-   - Check if PostgreSQL is running: `docker-compose ps db`
-   - Verify database credentials in `.env`
-
-2. **Redis Connection Errors**
-   - Check if Redis is running: `docker-compose ps redis`
-   - Verify Redis URL in `.env`
-
-3. **AI Dependency Issues**
-   - Check if TensorFlow is properly installed
-   - Run the test endpoint: `curl http://localhost:8005/test`
-
-4. **Port Conflicts**
-   - Change the port mapping in `docker-compose.yml`
-   - Check for processes using port 8005: `netstat -ano | findstr 8005`
-
-### Debugging
-
-Enable debug logging by setting `LOG_LEVEL=DEBUG` in your `.env` file.
-
-View application logs:
-```bash
-docker-compose logs -f web
-```
-
 ## Version History
 
+- **0.2.0** - Azure AI Integration
+  - Added Azure OpenAI, Anomaly Detector, Content Safety, AI Search, and Metrics Advisor
+  - Enhanced Snort connector with AI capabilities
+  - Expanded database schema for AI analysis
+  - Improved logging and error handling
 - **0.1.0** - Initial release with core functionality
   - AI-powered threat detection
   - Basic authentication

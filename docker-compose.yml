@@ -10,6 +10,8 @@ services:
       - REDIS_URL=redis://redis:6379/0
       - SECRET_KEY=${SECRET_KEY:-your-secret-key-here}
       - DEBUG=True
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - OPENAI_API_BASE_URL=${OPENAI_API_BASE_URL:-https://api.openai.com/v1}
     volumes:
       - .:/app
     depends_on:
@@ -67,7 +69,7 @@ services:
       - SNORT_LOG_PATH=/app/snort_logs/alert
       - API_URL=http://web:8000/api/v1/threats/analyze
       - POLL_INTERVAL=5
-      - BATCH_MODE=--batch --batch-size 5
+      - BATCH_MODE=--batch-mode --batch-size 5
       - PYTHONUNBUFFERED=1
     restart: unless-stopped
     logging:

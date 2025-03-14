@@ -3,142 +3,19 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CyberCare Dashboard</title>
+    <title>SentinelAI Dashboard</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.3/dist/leaflet.css">
-    <style>
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background-color: #f8f9fa;
-        }
-        .dashboard-container {
-            padding: 20px;
-        }
-        .threat-card {
-            margin-bottom: 10px;
-            transition: all 0.3s;
-        }
-        .threat-card:hover {
-            transform: translateY(-3px);
-            box-shadow: 0 10px 20px rgba(0,0,0,0.1);
-        }
-        .card-header.HIGH {
-            background-color: #dc3545;
-            color: white;
-        }
-        .card-header.MEDIUM {
-            background-color: #fd7e14;
-            color: white;
-        }
-        .card-header.LOW {
-            background-color: #ffc107;
-        }
-        .card-header.NORMAL {
-            background-color: #20c997;
-        }
-        .severity-badge {
-            position: absolute;
-            top: 10px;
-            right: 10px;
-            font-size: 0.8rem;
-        }
-        .badge.HIGH {
-            background-color: #dc3545;
-        }
-        .badge.MEDIUM {
-            background-color: #fd7e14;
-        }
-        .badge.LOW {
-            background-color: #ffc107;
-            color: #343a40;
-        }
-        .badge.NORMAL {
-            background-color: #20c997;
-        }
-        .card-actions {
-            display: flex;
-            justify-content: flex-end;
-            margin-top: 10px;
-        }
-        .threat-detail {
-            font-size: 0.85rem;
-            color: #6c757d;
-        }
-        .stat-card {
-            text-align: center;
-            transition: all 0.3s;
-        }
-        .stat-card:hover {
-            transform: translateY(-5px);
-        }
-        .stat-value {
-            font-size: 2.5rem;
-            font-weight: bold;
-        }
-        .stat-label {
-            font-size: 0.9rem;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-        }
-        #map {
-            height: 300px;
-            border-radius: 5px;
-            box-shadow: 0 0 10px rgba(0,0,0,0.1);
-        }
-        .alert-counter {
-            position: relative;
-            top: -2px;
-            margin-left: 5px;
-        }
-        .timeline-item {
-            position: relative;
-            padding-left: 20px;
-            margin-bottom: 15px;
-        }
-        .timeline-item:before {
-            content: "";
-            position: absolute;
-            left: 0;
-            top: 0;
-            height: 100%;
-            width: 2px;
-            background-color: #dee2e6;
-        }
-        .timeline-item:after {
-            content: "";
-            position: absolute;
-            left: -4px;
-            top: 0;
-            height: 10px;
-            width: 10px;
-            border-radius: 50%;
-            background-color: #6c757d;
-        }
-        .timeline-item.HIGH:after {
-            background-color: #dc3545;
-        }
-        .timeline-item.MEDIUM:after {
-            background-color: #fd7e14;
-        }
-        .timeline-item.LOW:after {
-            background-color: #ffc107;
-        }
-        .timeline-time {
-            font-size: 0.75rem;
-            color: #6c757d;
-        }
-        .chart-container {
-            position: relative;
-            height: 250px;
-        }
-    </style>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/dashboard.css">
 </head>
 <body>
     <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
         <div class="container-fluid">
             <a class="navbar-brand" href="#">
-                <img src="https://via.placeholder.com/30" alt="Logo" class="d-inline-block align-text-top me-2">
-                CyberCare Dashboard
+                <i class="bi bi-shield-lock-fill text-primary me-2"></i>
+                SentinelAI
             </a>
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
                 <span class="navbar-toggler-icon"></span>
@@ -158,7 +35,20 @@
                         <a class="nav-link" href="#">Reports</a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="#">Settings</a>
+                        <a class="nav-link" href="#" data-bs-toggle="modal" data-bs-target="#settingsModal">
+                            <i class="bi bi-gear-fill"></i> Settings
+                        </a>
+                    </li>
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                            <span class="badge bg-primary azure-service-badge">Azure AI</span>
+                        </a>
+                        <ul class="dropdown-menu" aria-labelledby="azureDropdown">
+                            <li><a class="dropdown-item" href="#search-section">AI Search</a></li>
+                            <li><a class="dropdown-item" href="#metrics-section">Metrics Advisor</a></li>
+                            <li><a class="dropdown-item" href="#synapse-module-section">Synapse Analytics</a></li>
+                            <li><a class="dropdown-item" href="#security-status-section">Security Status</a></li>
+                        </ul>
                     </li>
                 </ul>
                 <div class="d-flex align-items-center">
@@ -182,18 +72,21 @@
     </nav>
 
     <div class="container-fluid dashboard-container">
-        <div class="row mb-4">
+        <div class="row mb-4" id="dashboard-main">
             <div class="col-12">
                 <div class="d-flex justify-content-between align-items-center">
                     <h4>Security Overview</h4>
                     <div>
-                        <button class="btn btn-sm btn-outline-secondary me-2" id="refresh-btn">
+                        <button id="toggle-auto-threats" class="btn btn-sm btn-outline-secondary me-2">
+                            <span id="auto-threats-status">Auto Threats: Off</span>
+                        </button>
+                        <button class="btn btn-sm btn-outline-primary refresh-threats">
                             <i class="bi bi-arrow-clockwise"></i> Refresh
                         </button>
-                        <div class="btn-group">
-                            <button class="btn btn-sm btn-outline-secondary active">Today</button>
-                            <button class="btn btn-sm btn-outline-secondary">Week</button>
-                            <button class="btn btn-sm btn-outline-secondary">Month</button>
+                        <div class="btn-group" role="group" aria-label="Time Range">
+                            <button id="time-range-today" class="btn btn-secondary active" onclick="filterThreatsByTimeRange('today')">Today</button>
+                            <button id="time-range-week" class="btn btn-outline-secondary" onclick="filterThreatsByTimeRange('week')">Week</button>
+                            <button id="time-range-month" class="btn btn-outline-secondary" onclick="filterThreatsByTimeRange('month')">Month</button>
                         </div>
                     </div>
                 </div>
@@ -205,7 +98,7 @@
             <div class="col-md-3">
                 <div class="card stat-card">
                     <div class="card-body">
-                        <div class="stat-value text-danger" id="high-threats">0</div>
+                        <div class="stat-value text-danger" id="high-count">0</div>
                         <div class="stat-label">High Severity</div>
                     </div>
                 </div>
@@ -213,7 +106,7 @@
             <div class="col-md-3">
                 <div class="card stat-card">
                     <div class="card-body">
-                        <div class="stat-value text-warning" id="medium-threats">0</div>
+                        <div class="stat-value text-warning" id="medium-count">0</div>
                         <div class="stat-label">Medium Severity</div>
                     </div>
                 </div>
@@ -221,7 +114,7 @@
             <div class="col-md-3">
                 <div class="card stat-card">
                     <div class="card-body">
-                        <div class="stat-value text-info" id="total-threats">0</div>
+                        <div class="stat-value text-info" id="total-count">0</div>
                         <div class="stat-label">Total Threats</div>
                     </div>
                 </div>
@@ -229,8 +122,58 @@
             <div class="col-md-3">
                 <div class="card stat-card">
                     <div class="card-body">
-                        <div class="stat-value text-success" id="avg-response">0s</div>
+                        <div class="stat-value text-success" id="response-time">0s</div>
                         <div class="stat-label">Avg Response Time</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Azure AI Stats Row -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <h5><span class="badge bg-primary azure-service-badge">Azure AI</span> Intelligence Metrics</h5>
+                    <button class="btn btn-sm btn-outline-primary" id="refresh-ai-stats">Refresh AI Data</button>
+                </div>
+            </div>
+            <div class="col-md-2">
+                <div class="card stat-card border-primary">
+                    <div class="card-body">
+                        <div class="stat-value text-primary" id="ai-analyzed-count">0</div>
+                        <div class="stat-label">AI Analyzed Threats</div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-2">
+                <div class="card stat-card border-primary">
+                    <div class="card-body">
+                        <div class="stat-value text-primary" id="ai-anomalies">0</div>
+                        <div class="stat-label">Detected Anomalies</div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-2">
+                <div class="card stat-card border-primary">
+                    <div class="card-body">
+                        <div class="stat-value text-primary" id="ai-similar-threats">0</div>
+                        <div class="stat-label">Similar Threats</div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-2">
+                <div class="card stat-card border-primary">
+                    <div class="card-body">
+                        <div class="stat-value text-primary" id="ai-metrics-alerts">0</div>
+                        <div class="stat-label">Metrics Alerts</div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-2">
+                <div class="card stat-card border-success">
+                    <div class="card-body">
+                        <div class="stat-value text-success" id="ai-confidence">0%</div>
+                        <div class="stat-label">AI Confidence</div>
                     </div>
                 </div>
             </div>
@@ -256,7 +199,7 @@
             <div class="col-lg-4">
                 <div class="card h-100">
                     <div class="card-header">
-                        Threat Origins
+                        <h5 class="mb-0">Threat Map</h5>
                     </div>
                     <div class="card-body">
                         <div id="map"></div>
@@ -265,17 +208,40 @@
             </div>
         </div>
 
+        <!-- Threat Origins Section -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0">Threat Origins</h5>
+                        <button class="btn btn-sm btn-outline-secondary" data-bs-toggle="collapse" data-bs-target="#origins-chart-container">
+                            <i class="bi bi-chevron-down"></i>
+                        </button>
+                    </div>
+                    <div class="collapse show" id="origins-chart-container">
+                        <div class="card-body">
+                            <canvas id="originsChart" height="200"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <div class="row">
             <!-- Recent Threats -->
             <div class="col-lg-8">
-                <div class="card">
+                <div class="card mb-4">
                     <div class="card-header d-flex justify-content-between align-items-center">
-                        <span>Recent Threats</span>
-                        <button class="btn btn-sm btn-outline-secondary" id="clear-threats">Clear All</button>
+                        <h5 class="mb-0">Recent Threats</h5>
+                        <button class="btn btn-sm btn-outline-secondary" data-bs-toggle="collapse" data-bs-target="#threat-list-container">
+                            <i class="bi bi-chevron-down"></i>
+                        </button>
                     </div>
-                    <div class="card-body">
-                        <div id="threat-list">
-                            <!-- Threats will be loaded here -->
+                    <div class="collapse show" id="threat-list-container">
+                        <div class="card-body">
+                            <div id="threat-list" class="limited-height">
+                                <!-- Threats will be loaded here -->
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -284,366 +250,894 @@
             <!-- Activity Timeline -->
             <div class="col-lg-4">
                 <div class="card">
-                    <div class="card-header">
-                        Activity Timeline
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0">Activity Timeline</h5>
+                        <button class="btn btn-sm btn-outline-secondary" data-bs-toggle="collapse" data-bs-target="#timeline-container">
+                            <i class="bi bi-chevron-down"></i>
+                        </button>
                     </div>
-                    <div class="card-body">
-                        <div id="timeline">
-                            <!-- Timeline will be loaded here -->
+                    <div class="collapse show" id="timeline-container">
+                        <div class="card-body">
+                            <div id="timeline" class="timeline limited-height">
+                                <!-- Timeline events will be loaded here -->
+                            </div>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
-    </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.3/dist/leaflet.js"></script>
-    <script>
-        // Store threats
-        let threats = [];
-        let threatMap;
-        let threatChart;
-        let markers = [];
-
-        // Initialize map
-        function initMap() {
-            threatMap = L.map('map').setView([20, 0], 2);
-            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-            }).addTo(threatMap);
-        }
-
-        // Initialize chart
-        function initChart() {
-            const ctx = document.getElementById('threatChart').getContext('2d');
-            
-            // Create 24 hours of labels
-            const labels = Array.from({length: 24}, (_, i) => {
-                const hour = i.toString().padStart(2, '0');
-                return `${hour}:00`;
-            });
-            
-            // Prepare empty data
-            const data = {
-                labels: labels,
-                datasets: [
-                    {
-                        label: 'High',
-                        data: Array(24).fill(0),
-                        borderColor: '#dc3545',
-                        backgroundColor: 'rgba(220, 53, 69, 0.1)',
-                        borderWidth: 2,
-                        tension: 0.4
-                    },
-                    {
-                        label: 'Medium',
-                        data: Array(24).fill(0),
-                        borderColor: '#fd7e14',
-                        backgroundColor: 'rgba(253, 126, 20, 0.1)',
-                        borderWidth: 2,
-                        tension: 0.4
-                    },
-                    {
-                        label: 'Low',
-                        data: Array(24).fill(0),
-                        borderColor: '#ffc107',
-                        backgroundColor: 'rgba(255, 193, 7, 0.1)',
-                        borderWidth: 2,
-                        tension: 0.4
-                    }
-                ]
-            };
-            
-            threatChart = new Chart(ctx, {
-                type: 'line',
-                data: data,
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    scales: {
-                        y: {
-                            beginAtZero: true,
-                            ticks: {
-                                precision: 0
-                            }
-                        }
-                    },
-                    plugins: {
-                        legend: {
-                            position: 'top',
-                        }
-                    }
-                }
-            });
-        }
-
-        // Update statistics
-        function updateStats() {
-            const highThreats = threats.filter(t => t.severity === 'HIGH').length;
-            const mediumThreats = threats.filter(t => t.severity === 'MEDIUM').length;
-            const totalThreats = threats.length;
-            
-            document.getElementById('high-threats').textContent = highThreats;
-            document.getElementById('medium-threats').textContent = mediumThreats;
-            document.getElementById('total-threats').textContent = totalThreats;
-            document.getElementById('alert-count').textContent = highThreats + mediumThreats;
-        }
-
-        // Add a threat to the list
-        function addThreat(threat) {
-            // Add to array
-            threats.unshift(threat);
-            if (threats.length > 100) threats.pop();
-            
-            // Update statistics
-            updateStats();
-            
-            // Update timeline
-            addTimelineEvent(threat);
-            
-            // Update chart
-            updateChart(threat);
-            
-            // Add marker to map
-            addMapMarker(threat);
-            
-            // Add to UI
-            const threatList = document.getElementById('threat-list');
-            
-            const card = document.createElement('div');
-            card.className = `card threat-card`;
-            card.id = `threat-${threat.id}`;
-            
-            const timestamp = new Date(threat.timestamp);
-            const formattedTime = timestamp.toLocaleTimeString();
-            
-            card.innerHTML = `
-                <div class="card-header ${threat.severity}">
-                    ${threat.behavior.replace('_', ' ')} 
-                    <span class="severity-badge badge ${threat.severity}">${threat.severity}</span>
-                </div>
-                <div class="card-body">
-                    <h6 class="card-title">Source: ${threat.source_ip}</h6>
-                    <p class="card-text">
-                        <span class="threat-detail">Target: ${threat.destination_ip}</span><br>
-                        <span class="threat-detail">Protocol: ${threat.protocol}</span><br>
-                        <span class="threat-detail">Time: ${formattedTime}</span><br>
-                        <span class="threat-detail">Confidence: ${Math.round(threat.confidence * 100)}%</span>
-                    </p>
-                    <div class="card-actions">
-                        <button class="btn btn-sm btn-outline-primary">Details</button>
-                        <button class="btn btn-sm btn-outline-success ms-2">Resolve</button>
-                        <button class="btn btn-sm btn-outline-danger ms-2">Block</button>
+        <!-- Azure AI Integration Sections -->
+        <h4 class="mt-5 mb-3"><span class="badge bg-primary azure-service-badge">Azure AI</span> Intelligence Dashboard</h4>
+        
+        <!-- Azure OpenAI Analysis Section -->
+        <div class="row mb-4" id="openai-section">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                        <span><i class="bi bi-robot"></i> Azure OpenAI Threat Analysis</span>
+                        <span class="badge bg-light text-primary">GPT-4</span>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="card mb-3">
+                                    <div class="card-header">Threat Classification</div>
+                                    <div class="card-body">
+                                        <canvas id="openai-classification-chart"></canvas>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="card mb-3">
+                                    <div class="card-header">Latest AI Threat Analysis</div>
+                                    <div class="card-body">
+                                        <div id="openai-analysis" class="p-3 bg-light rounded">
+                                            <h6 class="text-primary">Threat Summary</h6>
+                                            <p id="openai-summary">No recent AI analysis available</p>
+                                            
+                                            <h6 class="text-primary mt-3">Recommended Mitigations</h6>
+                                            <ul id="openai-mitigations">
+                                                <li>No mitigation steps available</li>
+                                            </ul>
+                                            
+                                            <h6 class="text-primary mt-3">Risk Assessment</h6>
+                                            <div class="progress mb-2">
+                                                <div id="openai-risk-bar" class="progress-bar bg-danger" role="progressbar" style="width: 0%" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">0%</div>
+                                            </div>
+                                            <small class="text-muted">AI confidence: <span id="openai-confidence">N/A</span></small>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
-            `;
-            
-            // Add to the top of the list
-            if (threatList.firstChild) {
-                threatList.insertBefore(card, threatList.firstChild);
-            } else {
-                threatList.appendChild(card);
-            }
-            
-            // Limit displayed threats
-            if (threatList.children.length > 10) {
-                threatList.removeChild(threatList.lastChild);
-            }
-        }
+            </div>
+        </div>
 
-        // Add timeline event
-        function addTimelineEvent(threat) {
-            const timeline = document.getElementById('timeline');
-            
-            const event = document.createElement('div');
-            event.className = `timeline-item ${threat.severity}`;
-            
-            const timestamp = new Date(threat.timestamp);
-            const formattedTime = timestamp.toLocaleTimeString();
-            
-            event.innerHTML = `
-                <div class="timeline-time">${formattedTime}</div>
-                <div class="timeline-content">
-                    <strong>${threat.severity} threat detected:</strong> 
-                    ${threat.behavior.replace('_', ' ')} from ${threat.source_ip}
+        <!-- Azure AI Search Section -->
+        <div class="row mb-4" id="search-section">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                        <span><i class="bi bi-search"></i> Azure AI Search</span>
+                        <button class="btn btn-sm btn-light" id="refresh-search-module">Refresh</button>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="card mb-3">
+                                    <div class="card-header">Threat Intelligence Results</div>
+                                    <div class="card-body">
+                                        <div class="input-group mb-3">
+                                            <input type="text" class="form-control" placeholder="Search for threats..." id="ai-search-input">
+                                            <button class="btn btn-primary" type="button" id="ai-search-btn">Search</button>
+                                        </div>
+                                        <div id="search-results" class="mt-3">
+                                            <div class="alert alert-info">
+                                                Enter a search query to find similar threats and mitigation strategies
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="row">
+                                    <div class="col-12 mb-3">
+                                        <div class="card">
+                                            <div class="card-header">Similar Threats Graph</div>
+                                            <div class="card-body">
+                                                <canvas id="search-graph" height="200"></canvas>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-12">
+                                        <div class="card">
+                                            <div class="card-header">Search Statistics</div>
+                                            <div class="card-body">
+                                                <div class="d-flex justify-content-between mb-2">
+                                                    <span>Total Searches:</span>
+                                                    <span id="total-searches">0</span>
+                                                </div>
+                                                <div class="d-flex justify-content-between mb-2">
+                                                    <span>Avg. Relevance:</span>
+                                                    <span id="avg-relevance">0%</span>
+                                                </div>
+                                                <div class="d-flex justify-content-between">
+                                                    <span>Last Updated:</span>
+                                                    <span id="search-last-updated">Never</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
-            `;
-            
-            // Add to the top of the timeline
-            if (timeline.firstChild) {
-                timeline.insertBefore(event, timeline.firstChild);
-            } else {
-                timeline.appendChild(event);
-            }
-            
-            // Limit timeline events
-            if (timeline.children.length > 20) {
-                timeline.removeChild(timeline.lastChild);
-            }
-        }
+            </div>
+        </div>
 
-        // Add marker to map
-        function addMapMarker(threat) {
-            // This would normally use a geolocation service to convert IP to coordinates
-            // For demonstration, we'll use random coordinates
-            const lat = (Math.random() * 180) - 90;
-            const lng = (Math.random() * 360) - 180;
-            
-            // Create icon based on severity
-            const iconColor = threat.severity === 'HIGH' ? 'red' : 
-                             threat.severity === 'MEDIUM' ? 'orange' : 'yellow';
-            
-            const marker = L.circle([lat, lng], {
-                color: iconColor,
-                fillColor: iconColor,
-                fillOpacity: 0.5,
-                radius: 200000 // 200km
-            }).addTo(threatMap);
-            
-            // Add popup
-            marker.bindPopup(`
-                <b>${threat.behavior.replace('_', ' ')}</b><br>
-                Source: ${threat.source_ip}<br>
-                Severity: ${threat.severity}<br>
-                Protocol: ${threat.protocol}
-            `);
-            
-            // Store marker reference
-            markers.push(marker);
-            
-            // Limit markers on map
-            if (markers.length > 50) {
-                threatMap.removeLayer(markers.shift());
-            }
-        }
+        <!-- Azure Metrics Advisor Section -->
+        <div class="row mb-4" id="metrics-section">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                        <span><i class="bi bi-graph-up"></i> Azure Metrics Advisor</span>
+                        <button class="btn btn-sm btn-light" id="refresh-metrics">Refresh</button>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-7">
+                                <div class="card mb-3">
+                                    <div class="card-header">Metrics Overview</div>
+                                    <div class="card-body">
+                                        <canvas id="metrics-chart" height="250"></canvas>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-5">
+                                <div class="card h-100">
+                                    <div class="card-header">Metrics Alerts</div>
+                                    <div class="card-body" id="metrics-alerts">
+                                        <!-- Will be populated with alerts -->
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
 
-        // Update threat chart
-        function updateChart(threat) {
-            const timestamp = new Date(threat.timestamp);
-            const hour = timestamp.getHours();
-            
-            // Update the appropriate dataset based on severity
-            let datasetIndex = 2; // Default to low
-            if (threat.severity === 'HIGH') {
-                datasetIndex = 0;
-            } else if (threat.severity === 'MEDIUM') {
-                datasetIndex = 1;
-            }
-            
-            // Increment count for this hour
-            threatChart.data.datasets[datasetIndex].data[hour]++;
-            
-            // Update chart
-            threatChart.update();
-        }
+        <!-- Azure Synapse Analytics Section -->
+        <div class="row mb-4" id="synapse-module-section">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                        <span><i class="bi bi-diagram-3"></i> Azure Synapse Analytics</span>
+                        <button class="btn btn-sm btn-light" id="refresh-synapse-module">Refresh</button>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="card mb-3">
+                                    <div class="card-header">Data Processing Status</div>
+                                    <div class="card-body">
+                                        <canvas id="synapse-chart" height="250"></canvas>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="row">
+                                    <div class="col-12 mb-3">
+                                        <div class="card">
+                                            <div class="card-header">Recent Pipeline Executions</div>
+                                            <div class="card-body p-3">
+                                                <table class="table table-sm">
+                                                    <thead>
+                                                        <tr>
+                                                            <th>Pipeline</th>
+                                                            <th>Status</th>
+                                                            <th>Duration</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody id="synapse-pipeline-table">
+                                                        <tr>
+                                                            <td>ThreatDataIngestion</td>
+                                                            <td><span class="badge bg-success">Completed</span></td>
+                                                            <td>3m 24s</td>
+                                                        </tr>
+                                                        <tr>
+                                                            <td>SecurityMetricsAnalysis</td>
+                                                            <td><span class="badge bg-success">Completed</span></td>
+                                                            <td>5m 12s</td>
+                                                        </tr>
+                                                        <tr>
+                                                            <td>AnomalyDetection</td>
+                                                            <td><span class="badge bg-warning">Running</span></td>
+                                                            <td>2m 45s</td>
+                                                        </tr>
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-12">
+                                        <div class="card">
+                                            <div class="card-header">Synapse Analytics Metrics</div>
+                                            <div class="card-body">
+                                                <div class="d-flex justify-content-between mb-2">
+                                                    <span>Data Processed:</span>
+                                                    <span id="synapse-data-processed">2.4 GB</span>
+                                                </div>
+                                                <div class="d-flex justify-content-between mb-2">
+                                                    <span>Processing Time:</span>
+                                                    <span id="synapse-processing-time">3.2s</span>
+                                                </div>
+                                                <div class="d-flex justify-content-between">
+                                                    <span>Success Rate:</span>
+                                                    <span id="synapse-success-rate">98.5%</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
 
-        // Fetch threats from API
-        async function fetchThreats() {
-            try {
-                const response = await fetch('/api/v1/threats/recent');
-                if (response.ok) {
-                    const data = await response.json();
-                    
-                    // Clear existing threats
-                    threats = [];
-                    document.getElementById('threat-list').innerHTML = '';
-                    document.getElementById('timeline').innerHTML = '';
-                    
-                    // Reset markers
-                    markers.forEach(marker => threatMap.removeLayer(marker));
-                    markers = [];
-                    
-                    // Add each threat
-                    data.forEach(threat => addThreat(threat));
-                }
-            } catch (error) {
-                console.error('Error fetching threats:', error);
-            }
-        }
+        <!-- Azure Content Safety Section -->
+        <div class="row mb-4" id="security-status-section">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                        <span><i class="bi bi-shield-check"></i> Security Status Dashboard</span>
+                        <button class="btn btn-sm btn-light" id="refresh-security-status">Refresh</button>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="card mb-3">
+                                    <div class="card-header">Security Posture</div>
+                                    <div class="card-body">
+                                        <canvas id="security-status-chart" height="250"></canvas>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="row">
+                                    <div class="col-12 mb-3">
+                                        <div class="card">
+                                            <div class="card-header">Active Mitigations</div>
+                                            <div class="card-body p-3">
+                                                <ul class="list-group">
+                                                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                                                        Firewall Rules
+                                                        <span class="badge bg-success rounded-pill">Active</span>
+                                                    </li>
+                                                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                                                        Intrusion Prevention
+                                                        <span class="badge bg-success rounded-pill">Active</span>
+                                                    </li>
+                                                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                                                        DDoS Protection
+                                                        <span class="badge bg-success rounded-pill">Active</span>
+                                                    </li>
+                                                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                                                        Malware Scanning
+                                                        <span class="badge bg-warning rounded-pill">Partial</span>
+                                                    </li>
+                                                </ul>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-12">
+                                        <div class="card">
+                                            <div class="card-header">Security Status</div>
+                                            <div class="card-body">
+                                                <div class="d-flex justify-content-between mb-2">
+                                                    <span>Overall Security:</span>
+                                                    <span id="security-overall">Strong</span>
+                                                </div>
+                                                <div class="d-flex justify-content-between mb-2">
+                                                    <span>Last Scan:</span>
+                                                    <span id="security-last-scan">10 minutes ago</span>
+                                                </div>
+                                                <div class="d-flex justify-content-between">
+                                                    <span>Vulnerabilities:</span>
+                                                    <span id="security-vulnerabilities">2 Low</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
 
-        // Generate a random threat for testing
-        function generateRandomThreat() {
-            const behaviors = ['port_scan', 'sql_injection', 'brute_force', 'malware_communication', 'ddos_attack', 'xss_attempt', 'data_exfiltration'];
-            const protocols = ['TCP', 'UDP', 'HTTP', 'HTTPS', 'FTP', 'SSH', 'SMTP'];
-            const severities = ['HIGH', 'MEDIUM', 'LOW', 'NORMAL'];
-            const weights = [0.2, 0.3, 0.4, 0.1]; // More medium and low threats than high
-            
-            // Random IP generation
-            function randomIP() {
-                return `${Math.floor(Math.random() * 256)}.${Math.floor(Math.random() * 256)}.${Math.floor(Math.random() * 256)}.${Math.floor(Math.random() * 256)}`;
-            }
-            
-            // Weighted random selection
-            function weightedRandom(items, weights) {
-                let i;
-                const random = Math.random();
-                let threshold = 0;
-                
-                for (i = 0; i < weights.length; i++) {
-                    threshold += weights[i];
-                    if (random < threshold) return items[i];
-                }
-                
-                return items[i - 1];
-            }
-            
-            return {
-                id: Math.floor(Math.random() * 10000000),
-                source_ip: randomIP(),
-                destination_ip: randomIP(),
-                protocol: protocols[Math.floor(Math.random() * protocols.length)],
-                behavior: behaviors[Math.floor(Math.random() * behaviors.length)],
-                severity: weightedRandom(severities, weights),
-                confidence: Math.random() * 0.5 + 0.5, // Between 0.5 and 1.0
-                timestamp: new Date().toISOString()
-            };
-        }
+        <!-- Azure AI Detection Section -->
+        <div class="row mb-4" id="azure-detection-section">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                        <span><i class="bi bi-shield-exclamation"></i> Azure AI Detection</span>
+                        <button class="btn btn-sm btn-light" id="refresh-azure-detection">Refresh</button>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="card mb-3">
+                                    <div class="card-header">Detection Rate</div>
+                                    <div class="card-body">
+                                        <canvas id="azure-detection-chart" height="250"></canvas>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="card mb-3">
+                                    <div class="card-header">Detection Statistics</div>
+                                    <div class="card-body">
+                                        <div class="d-flex justify-content-between mb-2">
+                                            <span>Detection Rate:</span>
+                                            <span id="azure-detection-rate">0%</span>
+                                        </div>
+                                        <div class="d-flex justify-content-between mb-2">
+                                            <span>Accuracy:</span>
+                                            <span id="azure-accuracy">0%</span>
+                                        </div>
+                                        <div class="d-flex justify-content-between">
+                                            <span>Response Time:</span>
+                                            <span id="azure-response-time">0ms</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
 
-        // Simulate threats coming in
-        function simulateThreats() {
-            // Add a random threat
-            addThreat(generateRandomThreat());
-            
-            // Schedule next simulation
-            setTimeout(simulateThreats, Math.random() * 5000 + 2000); // 2-7 seconds
-        }
+        <!-- Azure OpenAI Section -->
+        <div class="row mb-4" id="openai-module-section">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                        <span><i class="bi bi-robot"></i> Azure OpenAI Module</span>
+                        <button class="btn btn-sm btn-light" id="refresh-openai-module">Refresh</button>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="card mb-3">
+                                    <div class="card-header">OpenAI Classification</div>
+                                    <div class="card-body">
+                                        <canvas id="openai-chart" height="250"></canvas>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="card mb-3">
+                                    <div class="card-header">OpenAI Statistics</div>
+                                    <div class="card-body">
+                                        <div class="d-flex justify-content-between mb-2">
+                                            <span>Classification Accuracy:</span>
+                                            <span id="openai-accuracy">0%</span>
+                                        </div>
+                                        <div class="d-flex justify-content-between mb-2">
+                                            <span>Response Time:</span>
+                                            <span id="openai-response-time">0ms</span>
+                                        </div>
+                                        <div class="d-flex justify-content-between">
+                                            <span>Model Version:</span>
+                                            <span id="openai-model-version">N/A</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
 
-        // Initialize
-        document.addEventListener('DOMContentLoaded', function() {
-            // Initialize map and chart
-            initMap();
-            initChart();
-            
-            // Add event listeners
-            document.getElementById('refresh-btn').addEventListener('click', fetchThreats);
-            document.getElementById('clear-threats').addEventListener('click', function() {
-                threats = [];
-                document.getElementById('threat-list').innerHTML = '';
-                document.getElementById('timeline').innerHTML = '';
-                updateStats();
-            });
-            
-            // Try to fetch real threats initially
-            fetchThreats()
-                .then(() => {
-                    // If no threats, start simulation
-                    if (threats.length === 0) {
-                        console.log('No threats found, starting simulation');
-                        simulateThreats();
-                    }
-                })
-                .catch(error => {
-                    console.error('Error fetching initial threats:', error);
-                    console.log('Starting simulation');
-                    simulateThreats();
-                });
-            
-            // Set a random response time (for demo)
-            document.getElementById('avg-response').textContent = 
-                Math.floor(Math.random() * 500 + 100) + 'ms';
-        });
-    </script>
+        <!-- Azure Anomaly Detection Section -->
+        <div class="row mb-4" id="anomaly-module-section">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                        <span><i class="bi bi-graph-up"></i> Azure Anomaly Detection Module</span>
+                        <button class="btn btn-sm btn-light" id="refresh-anomaly-module">Refresh</button>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="card mb-3">
+                                    <div class="card-header">Anomaly Detection</div>
+                                    <div class="card-body">
+                                        <canvas id="anomaly-chart" height="250"></canvas>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="card mb-3">
+                                    <div class="card-header">Anomaly Statistics</div>
+                                    <div class="card-body">
+                                        <div class="d-flex justify-content-between mb-2">
+                                            <span>Detection Rate:</span>
+                                            <span id="anomaly-detection-rate">0%</span>
+                                        </div>
+                                        <div class="d-flex justify-content-between mb-2">
+                                            <span>Accuracy:</span>
+                                            <span id="anomaly-accuracy">0%</span>
+                                        </div>
+                                        <div class="d-flex justify-content-between">
+                                            <span>Response Time:</span>
+                                            <span id="anomaly-response-time">0ms</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Azure Content Safety Section -->
+        <div class="row mb-4" id="content-safety-module-section">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                        <span><i class="bi bi-shield-check"></i> Azure Content Safety Module</span>
+                        <button class="btn btn-sm btn-light" id="refresh-content-safety-module">Refresh</button>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="card mb-3">
+                                    <div class="card-header">Content Safety</div>
+                                    <div class="card-body">
+                                        <canvas id="content-safety-chart" height="250"></canvas>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="card mb-3">
+                                    <div class="card-header">Content Safety Statistics</div>
+                                    <div class="card-body">
+                                        <div class="d-flex justify-content-between mb-2">
+                                            <span>Safety Rate:</span>
+                                            <span id="content-safety-rate">0%</span>
+                                        </div>
+                                        <div class="d-flex justify-content-between mb-2">
+                                            <span>Accuracy:</span>
+                                            <span id="content-safety-accuracy">0%</span>
+                                        </div>
+                                        <div class="d-flex justify-content-between">
+                                            <span>Response Time:</span>
+                                            <span id="content-safety-response-time">0ms</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- AI Intelligence Dashboard -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <h5><span class="badge bg-primary azure-service-badge">Azure AI</span> Intelligence Metrics</h5>
+                    <button class="btn btn-sm btn-outline-primary" id="refresh-ai-stats">Refresh AI Data</button>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card h-100 mb-4 mb-md-0">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h6 class="mb-0">AI Performance</h6>
+                        <span class="badge bg-primary ms-2">Live</span>
+                    </div>
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between mb-2">
+                            <span>AI Systems Analyzed</span>
+                            <span id="ai-analyzed-count" class="fw-bold">0</span>
+                        </div>
+                        <div class="d-flex justify-content-between mb-2">
+                            <span>Anomalies Detected</span>
+                            <span id="ai-anomalies" class="fw-bold">0</span>
+                        </div>
+                        <div class="d-flex justify-content-between mb-2">
+                            <span>Similar Threat Patterns</span>
+                            <span id="ai-similar-threats" class="fw-bold">0</span>
+                        </div>
+                        <div class="d-flex justify-content-between mb-2">
+                            <span>Metrics Alerts</span>
+                            <span id="ai-metrics-alerts" class="fw-bold">0</span>
+                        </div>
+                        <div class="d-flex justify-content-between mb-2">
+                            <span>AI Confidence Level</span>
+                            <span id="ai-confidence" class="fw-bold">0%</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-8">
+                <div class="card h-100">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h6 class="mb-0">Service Health</h6>
+                        <span id="service-health" class="badge bg-success">100%</span>
+                    </div>
+                    <div class="card-body">
+                        <div class="chart-container">
+                            <canvas id="serviceHealthChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Azure AI Integration Sections -->
+        <h4 class="mt-5 mb-3"><span class="badge bg-primary azure-service-badge">Azure AI</span> Intelligence Dashboard</h4>
+        
+        <!-- Azure OpenAI Analysis Section -->
+        <div class="row mb-4" id="openai-section">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header d-flex justify-content-between align-items-center bg-primary text-white">
+                        <h6 class="mb-0">
+                            <i class="fas fa-brain me-2"></i> Azure OpenAI Threat Analysis
+                        </h6>
+                        <button class="btn btn-sm btn-outline-light">GPT-4</button>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="card mb-3">
+                                    <div class="card-header">Threat Classification</div>
+                                    <div class="card-body">
+                                        <div id="threat-classification-container" class="chart-container">
+                                            <canvas id="threatClassificationChart"></canvas>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="card mb-3">
+                                    <div class="card-header">Latest AI Threat Analysis</div>
+                                    <div class="card-body">
+                                        <h6>Threat Summary</h6>
+                                        <p id="threat-summary" class="text-muted">No recent AI analysis available</p>
+                                        
+                                        <h6>Recommended Mitigations</h6>
+                                        <ul id="mitigations-list" class="text-muted">
+                                            <li>No mitigation steps available</li>
+                                        </ul>
+                                        
+                                        <h6>Risk Assessment</h6>
+                                        <p class="mb-1 text-muted">AI confidence: <span id="ai-confidence-level">N/A</span></p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Azure AI Search Section -->
+        <div class="row mb-4" id="search-section">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header d-flex justify-content-between align-items-center bg-primary text-white">
+                        <h6 class="mb-0">
+                            <i class="fas fa-search me-2"></i> Azure AI Search
+                        </h6>
+                        <span class="badge bg-light text-dark">Semantic Search</span>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-12 mb-3">
+                                <div class="input-group">
+                                    <input type="text" class="form-control" id="ai-search-input" placeholder="Search for threats, malware, or attack patterns...">
+                                    <button class="btn btn-primary" id="ai-search-button">
+                                        <i class="fas fa-search"></i> Search
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-12">
+                                <div id="search-results" class="d-none">
+                                    <div class="d-flex justify-content-between mb-3">
+                                        <h6 class="mb-0">Search Results</h6>
+                                        <span id="search-count" class="badge bg-secondary">0 results</span>
+                                    </div>
+                                    <div id="search-results-container" class="list-group"></div>
+                                </div>
+                                <div id="search-prompt" class="text-center py-5">
+                                    <i class="fas fa-search fa-3x text-light mb-3"></i>
+                                    <p class="text-muted">Search for threats, vulnerabilities, or security insights</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Azure Metrics Advisor Section -->
+        <div class="row mb-4" id="metrics-section">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header d-flex justify-content-between align-items-center bg-primary text-white">
+                        <h6 class="mb-0">
+                            <i class="fas fa-chart-line me-2"></i> Azure Metrics Advisor
+                        </h6>
+                        <span class="badge bg-light text-dark">Real-time Monitoring</span>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-5">
+                                <div class="card mb-3">
+                                    <div class="card-header">Anomaly Detection</div>
+                                    <div class="card-body">
+                                        <div class="chart-container">
+                                            <canvas id="anomalyDetectionChart"></canvas>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-7">
+                                <div class="card mb-3">
+                                    <div class="card-header">Anomaly Statistics</div>
+                                    <div class="card-body">
+                                        <div class="list-group">
+                                            <div class="list-group-item d-flex justify-content-between align-items-center">
+                                                <span>Detection Rate:</span>
+                                                <span id="azure-detection-rate" class="badge bg-primary">0%</span>
+                                            </div>
+                                            <div class="list-group-item d-flex justify-content-between align-items-center">
+                                                <span>Accuracy:</span>
+                                                <span id="azure-accuracy" class="badge bg-primary">0%</span>
+                                            </div>
+                                            <div class="list-group-item d-flex justify-content-between align-items-center">
+                                                <span>Response Time:</span>
+                                                <span id="azure-response-time" class="badge bg-primary">0ms</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Azure Synapse Analytics Section -->
+        <div class="row mb-4" id="synapse-section">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header d-flex justify-content-between align-items-center bg-primary text-white">
+                        <h6 class="mb-0">
+                            <i class="fas fa-database me-2"></i> Azure Synapse Analytics
+                        </h6>
+                        <span class="badge bg-light text-dark">Data Analytics</span>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="card mb-3">
+                                    <div class="card-header">Threat Distribution</div>
+                                    <div class="card-body">
+                                        <div class="chart-container">
+                                            <canvas id="threatDistributionChart"></canvas>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="card mb-3">
+                                    <div class="card-header">Top Attack Vectors</div>
+                                    <div class="card-body">
+                                        <div class="chart-container">
+                                            <canvas id="attackVectorsChart"></canvas>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Azure Content Safety Section -->
+        <div class="row mb-4" id="content-safety-section">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header d-flex justify-content-between align-items-center bg-primary text-white">
+                        <h6 class="mb-0">
+                            <i class="fas fa-shield-alt me-2"></i> Azure Content Safety
+                        </h6>
+                        <span class="badge bg-light text-dark">Content Moderation</span>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="card mb-3">
+                                    <div class="card-header">Content Safety Analysis</div>
+                                    <div class="card-body">
+                                        <div class="mb-3">
+                                            <label for="content-safety-input" class="form-label">Analyze Potentially Harmful Content</label>
+                                            <textarea class="form-control" id="content-safety-input" rows="3" placeholder="Enter content to analyze for potential threats..."></textarea>
+                                        </div>
+                                        <button class="btn btn-primary" id="analyze-content-btn">
+                                            <i class="fas fa-check-circle"></i> Analyze Content
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="card mb-3">
+                                    <div class="card-header">Safety Assessment</div>
+                                    <div class="card-body">
+                                        <div id="content-safety-results" class="d-none">
+                                            <div class="alert alert-info mb-3">
+                                                <h6 class="mb-1">Content Analysis Results</h6>
+                                                <p id="content-analysis-summary" class="mb-0">No content has been analyzed yet.</p>
+                                            </div>
+                                            <div class="progress mb-3">
+                                                <div id="content-safety-progress" class="progress-bar bg-success" role="progressbar" style="width: 100%" aria-valuenow="100" aria-valuemin="0" aria-valuemax="100">100%</div>
+                                            </div>
+                                            <div id="content-categories"></div>
+                                        </div>
+                                        <div id="content-safety-placeholder" class="text-center py-4">
+                                            <i class="fas fa-shield-alt fa-3x text-light mb-3"></i>
+                                            <p class="text-muted">Submit content to receive a safety assessment</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Modal for Threat Details -->
+    <div class="modal fade" id="threatDetailsModal" tabindex="-1" aria-labelledby="threatDetailsModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="threatDetailsModalLabel">Threat Details</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body" id="threatDetailsContent">
+                    <!-- Content will be dynamically inserted here -->
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    <button type="button" class="btn btn-danger" id="blockIpButton">Block IP</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Settings Modal -->
+    <div class="modal fade" id="settingsModal" tabindex="-1" aria-labelledby="settingsModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="settingsModalLabel">Settings</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="card mb-3">
+                                <div class="card-header">Azure Services</div>
+                                <div class="card-body">
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input" type="checkbox" id="azure-services-toggle">
+                                        <label class="form-check-label" for="azure-services-toggle">
+                                            Enable All Azure Services
+                                        </label>
+                                    </div>
+                                    <hr>
+                                    <div class="service-list mt-3">
+                                        <div class="d-flex justify-content-between mb-2">
+                                            <span>Azure OpenAI</span>
+                                            <span class="badge bg-secondary azure-service-status">Disabled</span>
+                                        </div>
+                                        <div class="d-flex justify-content-between mb-2">
+                                            <span>Azure Metrics Advisor</span>
+                                            <span class="badge bg-secondary azure-service-status">Disabled</span>
+                                        </div>
+                                        <div class="d-flex justify-content-between mb-2">
+                                            <span>Azure Synapse Analytics</span>
+                                            <span class="badge bg-secondary azure-service-status">Disabled</span>
+                                        </div>
+                                        <div class="d-flex justify-content-between mb-2">
+                                            <span>Azure AI Search</span>
+                                            <span class="badge bg-secondary azure-service-status">Disabled</span>
+                                        </div>
+                                        <div class="d-flex justify-content-between mb-2">
+                                            <span>Azure Content Safety</span>
+                                            <span class="badge bg-secondary azure-service-status">Disabled</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="card mb-3">
+                                <div class="card-header">Local GPT-4o</div>
+                                <div class="card-body">
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input" type="checkbox" id="local-gpt4-toggle" checked>
+                                        <label class="form-check-label" for="local-gpt4-toggle">
+                                            Enable Local GPT-4o
+                                        </label>
+                                    </div>
+                                    <div class="mb-3 mt-3">
+                                        <label for="gpt4o-api-key" class="form-label">GPT-4o API Key</label>
+                                        <input type="password" class="form-control" id="gpt4o-api-key" placeholder="Enter your GPT-4o API key">
+                                        <div class="form-text">Your API key is securely stored and never shared.</div>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="gpt4o-endpoint" class="form-label">Endpoint (optional)</label>
+                                        <input type="text" class="form-control" id="gpt4o-endpoint" placeholder="Custom endpoint URL (if any)">
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="card mb-3">
+                                <div class="card-header">Display Options</div>
+                                <div class="card-body">
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input" type="checkbox" id="hide-disabled-services" checked>
+                                        <label class="form-check-label" for="hide-disabled-services">
+                                            Hide Disabled Services in Dashboard
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    <button type="button" class="btn btn-primary" id="saveSettingsButton">Save Changes</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <!-- First load essential libraries -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/2.9.4/Chart.min.js" defer></script>
+    <script src="https://unpkg.com/leaflet@1.9.3/dist/leaflet.js"></script>
+    
+    <!-- Load our application modules in the correct dependency order -->
+    <script src="js/utilities.js"></script>
+    <script src="js/azureAI.js"></script>
+    <script src="js/threatManager.js"></script>
+    <script src="js/dashboardManager.js"></script>
+    <script src="js/main.js"></script>
 </body>
 </html>
